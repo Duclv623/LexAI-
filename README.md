@@ -1,2 +1,2 @@
-Dự án Chatbot về pháp luật Việt Nam . Sử Dụng RAG ...
+Dự án Chatbot về pháp luật Việt Nam . Sử Dụng RAG + LLM
 
