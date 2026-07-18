@@ -1,2 +1,3 @@
 Dự án Chatbot về pháp luật Việt Nam . Sử Dụng RAG + LLM
 
+# Đang xây dựng và  backend microservice tập trung vào kiến thức Api Gateway, cơ chế giao tiếp bất đồng bộ,...
