@@ -1,0 +1,80 @@
+package com.chatboxai.api_gateway.config;
+
+import java.io.IOException;
+import java.time.Duration;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+@Component
+public class RedisRateLimitFilter extends OncePerRequestFilter {
+
+    private final StringRedisTemplate redisTemplate;
+
+    public RedisRateLimitFilter(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+        RateLimitRule rule = resolveRule(request.getRequestURI());
+
+        if (rule == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String key = "rate-limit:%s:%s".formatted(rule.name(), clientIp(request));
+        Long requests = redisTemplate.opsForValue().increment(key);
+
+        if (requests != null && requests == 1) {
+            redisTemplate.expire(key, Duration.ofSeconds(rule.windowSeconds()));
+        }
+
+        if (requests != null && requests > rule.limit()) {
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                    {"error":"Too many requests"}
+                    """);
+            return;
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private RateLimitRule resolveRule(String path) {
+        if (path.startsWith("/api/auth/")) {
+            return new RateLimitRule("auth", 10, 60);
+        }
+        if (path.startsWith("/api/chat/")) {
+            return new RateLimitRule("chat", 20, 60);
+        }
+        if (path.startsWith("/api/ai/")) {
+            return new RateLimitRule("ai", 10, 60);
+        }
+        return null;
+    }
+
+    private String clientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private record RateLimitRule(String name, int limit, int windowSeconds) {
+    }
+}
