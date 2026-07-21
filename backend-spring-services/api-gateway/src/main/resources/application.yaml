@@ -27,3 +27,19 @@ spring:
 
 server:
   port: 8080
+
+app:
+  rate-limit:
+    rules:
+      - name: auth
+        path-prefix: /api/auth/
+        limit: 10
+        window-seconds: 60
+      - name: chat
+        path-prefix: /api/chat/
+        limit: 20
+        window-seconds: 60
+      - name: ai
+        path-prefix: /api/ai/
+        limit: 10
+        window-seconds: 60

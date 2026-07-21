@@ -17,9 +17,11 @@ import jakarta.servlet.http.HttpServletResponse;
 public class RedisRateLimitFilter extends OncePerRequestFilter {
 
     private final StringRedisTemplate redisTemplate;
+    private final RateLimitProperties properties;
 
-    public RedisRateLimitFilter(StringRedisTemplate redisTemplate) {
+    public RedisRateLimitFilter(StringRedisTemplate redisTemplate, RateLimitProperties properties) {
         this.redisTemplate = redisTemplate;
+        this.properties = properties;
     }
 
     @Override
@@ -28,21 +30,21 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        RateLimitRule rule = resolveRule(request.getRequestURI());
+        RateLimitProperties.Rule rule = resolveRule(request.getRequestURI());
 
         if (rule == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String key = "rate-limit:%s:%s".formatted(rule.name(), clientIp(request));
+        String key = "rate-limit:%s:%s".formatted(rule.getName(), clientIp(request));
         Long requests = redisTemplate.opsForValue().increment(key);
 
         if (requests != null && requests == 1) {
-            redisTemplate.expire(key, Duration.ofSeconds(rule.windowSeconds()));
+            redisTemplate.expire(key, Duration.ofSeconds(rule.getWindowSeconds()));
         }
 
-        if (requests != null && requests > rule.limit()) {
+        if (requests != null && requests > rule.getLimit()) {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
             response.getWriter().write("""
@@ -54,17 +56,11 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private RateLimitRule resolveRule(String path) {
-        if (path.startsWith("/api/auth/")) {
-            return new RateLimitRule("auth", 10, 60);
-        }
-        if (path.startsWith("/api/chat/")) {
-            return new RateLimitRule("chat", 20, 60);
-        }
-        if (path.startsWith("/api/ai/")) {
-            return new RateLimitRule("ai", 10, 60);
-        }
-        return null;
+    private RateLimitProperties.Rule resolveRule(String path) {
+        return properties.getRules().stream()
+                .filter(rule -> path.startsWith(rule.getPathPrefix()))
+                .findFirst()
+                .orElse(null);
     }
 
     private String clientIp(HttpServletRequest request) {
@@ -73,8 +69,5 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
             return forwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
-    }
-
-    private record RateLimitRule(String name, int limit, int windowSeconds) {
     }
 }
