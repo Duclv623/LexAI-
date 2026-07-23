@@ -23,3 +23,8 @@ LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gemini-2.5-flash")
 # LLM — Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile")
+
+# JWT (zero-trust) — verify token bằng public key lấy từ JWKS của auth-service.
+# ai-service KHÔNG giữ secret nào, chỉ fetch public key.
+JWKS_URL = os.getenv("JWKS_URL", "http://localhost:8081/.well-known/jwks.json")
+JWT_ISSUER = os.getenv("JWT_ISSUER", "http://localhost:8081")

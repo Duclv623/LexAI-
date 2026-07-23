@@ -2,9 +2,10 @@ import time
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.auth import require_user
 from api.schemas import RagRequest, RagResponse
 from api.rag_chain import run_rag
 from api.retriever import get_vectorstore
@@ -76,16 +77,17 @@ def _run_and_wrap(req: RagRequest, provider: str) -> RagResponse:
 
 
 @app.post("/rag", response_model=RagResponse)
-def rag_endpoint(req: RagRequest):
+def rag_endpoint(req: RagRequest, user: dict = Depends(require_user)):
     # Giữ endpoint cũ để không break BE — mặc định Gemini
+    logger.info("RAG request từ user id=%s", user["id"])
     return _run_and_wrap(req, provider="gemini")
 
 
 @app.post("/rag/gemini", response_model=RagResponse)
-def rag_gemini(req: RagRequest):
+def rag_gemini(req: RagRequest, user: dict = Depends(require_user)):
     return _run_and_wrap(req, provider="gemini")
 
 
 @app.post("/rag/groq", response_model=RagResponse)
-def rag_groq(req: RagRequest):
+def rag_groq(req: RagRequest, user: dict = Depends(require_user)):
     return _run_and_wrap(req, provider="groq")

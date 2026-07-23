@@ -5,6 +5,12 @@ spring:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
       - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Zero-trust: chat-service tự verify token bằng public key từ JWKS auth-service.
+          jwk-set-uri: http://localhost:8081/.well-known/jwks.json
 
 server:
   port: 8082

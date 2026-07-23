@@ -3,6 +3,8 @@ package com.chatboxai.api_gateway.config;
 import java.io.IOException;
 import java.time.Duration;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -14,6 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 10) // chặn flood trước, rồi mới tới JwtAuthFilter
 public class RedisRateLimitFilter extends OncePerRequestFilter {
 
     private final StringRedisTemplate redisTemplate;

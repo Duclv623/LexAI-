@@ -17,5 +17,5 @@ server:
 
 app:
   jwt:
-    secret: change-this-dev-secret-change-this-dev-secret
+    issuer: http://localhost:8081
     expiration-seconds: 86400

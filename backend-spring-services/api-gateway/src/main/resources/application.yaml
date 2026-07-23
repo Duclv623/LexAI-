@@ -29,6 +29,10 @@ server:
   port: 8080
 
 app:
+  jwt:
+    # Gateway verify token bằng public key lấy từ JWKS của auth-service.
+    jwk-set-uri: http://localhost:8081/.well-known/jwks.json
+    issuer: http://localhost:8081
   rate-limit:
     rules:
       - name: auth

@@ -47,6 +47,12 @@
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
 		</dependency>
+		<!-- NimbusJwtDecoder để verify token qua JWKS. Chỉ kéo oauth2-jose,
+		     KHÔNG kích hoạt Spring Security filter chain (JwtAuthFilter tự gác cổng). -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-jose</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.projectlombok</groupId>

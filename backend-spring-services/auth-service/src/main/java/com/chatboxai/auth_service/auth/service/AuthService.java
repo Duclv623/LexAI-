@@ -53,11 +53,7 @@ public class AuthService {
         return toAuthResponse(account);
     }
 
-    public AccountResponse me(String authorizationHeader) {
-        String token = extractBearerToken(authorizationHeader);
-        Long accountId = jwtService.extractAccountId(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token"));
-
+    public AccountResponse me(Long accountId) {
         Account account = accounts.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found"));
 
@@ -75,12 +71,5 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private String extractBearerToken(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing bearer token");
-        }
-        return authorizationHeader.substring("Bearer ".length());
     }
 }
