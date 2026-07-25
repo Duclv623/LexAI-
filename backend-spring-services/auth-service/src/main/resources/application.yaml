@@ -2,20 +2,20 @@ spring:
   application:
     name: auth-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/chatbox
-    username: chatbox
-    password: chatbox
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/chatbox}
+    username: ${AUTH_DB_USERNAME:chatbox}
+    password: ${AUTH_DB_PASSWORD:chatbox}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${AUTH_JPA_DDL_AUTO:update}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${AUTH_JPA_FORMAT_SQL:true}
 
 server:
-  port: 8081
+  port: ${AUTH_SERVER_PORT:8081}
 
 app:
   jwt:
-    issuer: http://localhost:8081
-    expiration-seconds: 86400
+    issuer: ${AUTH_JWT_ISSUER:http://localhost:8081}
+    expiration-seconds: ${AUTH_JWT_EXPIRATION_SECONDS:86400}
