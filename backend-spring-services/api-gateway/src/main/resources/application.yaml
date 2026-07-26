@@ -28,21 +28,43 @@ spring:
 server:
   port: 8080
 
+logging:
+  pattern:
+    # %X{requestId} đọc từ MDC do RequestIdFilter đặt → mọi dòng log trong cùng
+    # một request đều mang cùng ID. Dòng log lúc khởi động (chưa có request) hiện [].
+    level: "%5p [%X{requestId:-}]"
+
 app:
+  cors:
+    # Origin của frontend Next.js. Nhiều origin thì ngăn cách bằng dấu phẩy.
+    allowed-origins: ${GATEWAY_CORS_ORIGINS:http://localhost:3000}
   jwt:
     # Gateway verify token bằng public key lấy từ JWKS của auth-service.
     jwk-set-uri: http://localhost:8081/.well-known/jwks.json
     issuer: http://localhost:8081
   rate-limit:
+    # Filter khớp prefix DÀI NHẤT nên thứ tự khai báo ở đây không ảnh hưởng kết quả.
+    # Mọi path kết thúc bằng /health đều được miễn rate limit (xem RedisRateLimitFilter).
     rules:
+      # Bề mặt brute-force: siết chặt.
+      - name: auth-login
+        path-prefix: /api/auth/login
+        limit: 10
+        window-seconds: 60
+      - name: auth-register
+        path-prefix: /api/auth/register
+        limit: 5
+        window-seconds: 60
+      # Phần còn lại của auth (/me) frontend gọi mỗi lần load trang: nới rộng.
       - name: auth
         path-prefix: /api/auth/
-        limit: 10
+        limit: 60
         window-seconds: 60
       - name: chat
         path-prefix: /api/chat/
         limit: 20
         window-seconds: 60
+      # Mỗi request là một lần gọi LLM tốn tiền.
       - name: ai
         path-prefix: /api/ai/
         limit: 10

@@ -1,8 +1,6 @@
 package com.chatboxai.api_gateway.config;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +18,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
@@ -98,6 +95,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         filterChain.doFilter(new MutatedHeadersRequest(request, identity), response);
     }
 
+    // MutatedHeadersRequest đã tách ra class riêng cùng package để RequestIdFilter dùng chung.
+
     private boolean isPublic(String path) {
         return publicPaths.stream().anyMatch(path::equals);
     }
@@ -114,62 +113,5 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType("application/json");
         response.getWriter().write("{\"error\":\"%s\"}".formatted(message));
-    }
-
-    /**
-     * Bọc request để ép giá trị một số header:
-     *  - value == null  → coi như header không tồn tại (xoá header client gửi).
-     *  - value != null  → trả về đúng giá trị ta xác thực (ghi đè client).
-     * So khớp tên header không phân biệt hoa/thường (đúng chuẩn HTTP).
-     */
-    private static class MutatedHeadersRequest extends HttpServletRequestWrapper {
-
-        private final Map<String, String> overrides; // key đã lowercase
-
-        MutatedHeadersRequest(HttpServletRequest request, Map<String, String> overrides) {
-            super(request);
-            this.overrides = new HashMap<>();
-            overrides.forEach((k, v) -> this.overrides.put(k.toLowerCase(), v));
-        }
-
-        @Override
-        public String getHeader(String name) {
-            String key = name.toLowerCase();
-            if (overrides.containsKey(key)) {
-                return overrides.get(key); // có thể null → header bị xoá
-            }
-            return super.getHeader(name);
-        }
-
-        @Override
-        public Enumeration<String> getHeaders(String name) {
-            String key = name.toLowerCase();
-            if (overrides.containsKey(key)) {
-                String value = overrides.get(key);
-                return value == null
-                        ? Collections.emptyEnumeration()
-                        : Collections.enumeration(List.of(value));
-            }
-            return super.getHeaders(name);
-        }
-
-        @Override
-        public Enumeration<String> getHeaderNames() {
-            // Bỏ các header bị override khỏi danh sách gốc, rồi thêm lại những cái có giá trị.
-            List<String> names = new java.util.ArrayList<>();
-            Enumeration<String> original = super.getHeaderNames();
-            while (original.hasMoreElements()) {
-                String n = original.nextElement();
-                if (!overrides.containsKey(n.toLowerCase())) {
-                    names.add(n);
-                }
-            }
-            overrides.forEach((k, v) -> {
-                if (v != null) {
-                    names.add(k);
-                }
-            });
-            return Collections.enumeration(names);
-        }
     }
 }
