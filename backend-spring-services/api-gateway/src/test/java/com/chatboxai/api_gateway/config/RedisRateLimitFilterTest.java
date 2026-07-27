@@ -24,7 +24,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 /**
  * Khoá lại hành vi rate limit. Redis được mock nên test chạy không cần docker.
  */
-@SuppressWarnings({"unchecked", "rawtypes"}) // matcher của Mockito dùng RedisScript thô
+@SuppressWarnings("unchecked") // matcher của Mockito trả RedisScript thô
 class RedisRateLimitFilterTest {
 
     private final StringRedisTemplate redis = mock(StringRedisTemplate.class);

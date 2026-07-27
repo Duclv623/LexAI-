@@ -34,7 +34,7 @@ public class Message {
     private Instant createdAt;
 
     @PrePersist
-    void prePersist() {
+    protected void prePersist() {
         if (createdAt == null) {
             createdAt = Instant.now();
         }

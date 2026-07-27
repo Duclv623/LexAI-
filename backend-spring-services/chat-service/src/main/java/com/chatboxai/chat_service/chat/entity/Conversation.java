@@ -32,7 +32,7 @@ public class Conversation {
     private Instant updatedAt;
 
     @PrePersist
-    void prePersist() {
+    protected void prePersist() {
         Instant now = Instant.now();
         if (createdAt == null) {
             createdAt = now;
@@ -43,7 +43,7 @@ public class Conversation {
     }
 
     @PreUpdate
-    void preUpdate() {
+    protected void preUpdate() {
         updatedAt = Instant.now();
     }
 
