@@ -1,6 +1,11 @@
 spring:
   application:
     name: auth-service
+  config:
+    # Nạp file .env cạnh service (cùng cú pháp KEY=value nên đọc được như .properties).
+    # optional: -> thiếu file thì bỏ qua, không làm app chết.
+    # Biến môi trường thật của máy vẫn được ưu tiên cao hơn file này.
+    import: optional:file:.env[.properties]
   datasource:
     url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/chatbox}
     username: ${AUTH_DB_USERNAME:chatbox}
@@ -19,3 +24,5 @@ app:
   jwt:
     issuer: ${AUTH_JWT_ISSUER:http://localhost:8081}
     expiration-seconds: ${AUTH_JWT_EXPIRATION_SECONDS:86400}
+    # Private key RSA cố định (PKCS#8 DER -> base64 một dòng). Để trống = sinh khoá tạm mỗi lần chạy.
+    private-key: ${AUTH_JWT_PRIVATE_KEY:}
