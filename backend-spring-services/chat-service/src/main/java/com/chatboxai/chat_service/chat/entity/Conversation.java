@@ -7,18 +7,29 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+/**
+ * Một phiên hội thoại, thuộc sở hữu của đúng một user.
+ *
+ * Tên bảng không cần tiền tố: chat-service có database riêng (chatbox_chat) nên
+ * không thể trùng tên với bảng của service khác.
+ */
 @Entity
-@Table(name = "conversations")
+@Table(name = "conversations", indexes = {
+        // Danh sách hội thoại luôn truy vấn theo user và sắp xếp theo lần cập nhật gần nhất.
+        @Index(name = "idx_conv_user_updated", columnList = "user_id, updated_at")
+})
 public class Conversation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Lấy từ claim "sub" của JWT — KHÔNG bao giờ lấy từ body request. */
     @Column(nullable = false, name = "user_id", length = 80)
     private String userId;
 
@@ -45,6 +56,17 @@ public class Conversation {
     @PreUpdate
     protected void preUpdate() {
         updatedAt = Instant.now();
+    }
+
+    /**
+     * Đánh dấu hội thoại vừa có hoạt động mới.
+     *
+     * Cần gọi tay khi thêm message: Message là entity riêng, việc insert nó KHÔNG
+     * làm Conversation "bẩn", nên @PreUpdate ở trên sẽ không hề chạy. Đây là chỗ
+     * rất dễ tưởng nhầm là JPA tự lo.
+     */
+    public void touch() {
+        this.updatedAt = Instant.now();
     }
 
     public Long getId() {

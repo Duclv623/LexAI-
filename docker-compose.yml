@@ -24,6 +24,9 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Tạo DB + user riêng cho từng service. Chỉ chạy khi postgres-data còn trống;
+      # volume đã có dữ liệu thì phải chạy tay file này một lần.
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chatbox -d chatbox"]
       interval: 10s

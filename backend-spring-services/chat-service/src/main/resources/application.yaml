@@ -1,16 +1,30 @@
 spring:
   application:
     name: chat-service
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
-      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+  config:
+    # Giống auth-service: nạp .env cạnh service (KEY=value đọc được như .properties).
+    # optional: -> thiếu file thì bỏ qua. Biến môi trường thật của máy vẫn ưu tiên hơn.
+    import: optional:file:.env[.properties]
+  datasource:
+    # Database-per-service: chat-service chỉ có tài khoản vào chatbox_chat.
+    # Postgres từ chối kết nối sang DB của service khác (xem docker/postgres-init).
+    url: ${CHAT_DB_URL:jdbc:postgresql://localhost:5432/chatbox_chat}
+    username: ${CHAT_DB_USERNAME:chat_service}
+    password: ${CHAT_DB_PASSWORD:chat_service}
+  jpa:
+    hibernate:
+      # update: đủ cho môi trường học. Lên thật phải dùng Flyway/Liquibase vì
+      # update không bao giờ xoá/sửa cột cũ -> schema trôi dần khỏi code.
+      ddl-auto: ${CHAT_JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: ${CHAT_JPA_FORMAT_SQL:true}
   security:
     oauth2:
       resourceserver:
         jwt:
           # Zero-trust: chat-service tự verify token bằng public key từ JWKS auth-service.
-          jwk-set-uri: http://localhost:8081/.well-known/jwks.json
+          jwk-set-uri: ${CHAT_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
 server:
-  port: 8082
+  port: ${CHAT_SERVER_PORT:8082}

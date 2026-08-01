@@ -7,9 +7,11 @@ spring:
     # Biến môi trường thật của máy vẫn được ưu tiên cao hơn file này.
     import: optional:file:.env[.properties]
   datasource:
-    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/chatbox}
-    username: ${AUTH_DB_USERNAME:chatbox}
-    password: ${AUTH_DB_PASSWORD:chatbox}
+    # Database-per-service: auth-service chỉ có tài khoản vào chatbox_auth.
+    # Postgres từ chối kết nối sang DB của service khác (xem docker/postgres-init).
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/chatbox_auth}
+    username: ${AUTH_DB_USERNAME:auth_service}
+    password: ${AUTH_DB_PASSWORD:auth_service}
   jpa:
     hibernate:
       ddl-auto: ${AUTH_JPA_DDL_AUTO:update}
