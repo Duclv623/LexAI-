@@ -21,6 +21,10 @@ spring:
 
 server:
   port: ${AUTH_SERVER_PORT:8081}
+  error:
+    # Mặc định Spring giấu message lỗi, client chỉ nhận được mã trạng thái trống rỗng.
+    # Frontend đang hiển thị j.message nên cần bật lên, ví dụ "Mật khẩu hiện tại không đúng".
+    include-message: always
 
 app:
   jwt:

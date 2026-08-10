@@ -18,12 +18,13 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.chatboxai.chat_service.chat.dto.CreateConversationRequest;
-import com.chatboxai.chat_service.chat.dto.PostMessageRequest;
 import com.chatboxai.chat_service.chat.entity.Conversation;
 import com.chatboxai.chat_service.chat.entity.Message;
 import com.chatboxai.chat_service.chat.entity.MessageRole;
 import com.chatboxai.chat_service.chat.repository.ConversationRepository;
 import com.chatboxai.chat_service.chat.repository.MessageRepository;
+
+import tools.jackson.databind.ObjectMapper;
 
 /** Khoá lại nghiệp vụ hội thoại. Repository được mock nên không cần DB. */
 class ChatServiceTest {
@@ -32,7 +33,8 @@ class ChatServiceTest {
 
     private final ConversationRepository conversations = mock(ConversationRepository.class);
     private final MessageRepository messages = mock(MessageRepository.class);
-    private final ChatService service = new ChatService(conversations, messages);
+    private final ObjectMapper objectMapper = mock(ObjectMapper.class);
+    private final ChatService service = new ChatService(conversations, messages, objectMapper);
 
     private static Conversation conversation(String title) {
         var conversation = new Conversation();
@@ -40,6 +42,14 @@ class ChatServiceTest {
         conversation.setTitle(title);
         ReflectionTestUtils.setField(conversation, "id", 7L);
         return conversation;
+    }
+
+    private static Message message(MessageRole role, String content) {
+        var message = new Message();
+        message.setConversationId(7L);
+        message.setRole(role);
+        message.setContent(content);
+        return message;
     }
 
     /** save() trả lại chính đối tượng vừa nhận, như JPA vẫn làm. */
@@ -53,13 +63,17 @@ class ChatServiceTest {
         return captor.getValue();
     }
 
+    private void ownedConversation(Conversation conversation) {
+        when(conversations.findByIdAndUserId(7L, OWNER)).thenReturn(Optional.of(conversation));
+    }
+
     @Test
     @DisplayName("Gửi tin nhắn: role do server gán USER, client không quyết định được")
     void serverAssignsUserRole() {
-        when(conversations.findByIdAndUserId(7L, OWNER)).thenReturn(Optional.of(conversation("Có sẵn")));
+        ownedConversation(conversation("Có sẵn"));
         echoSavedMessage();
 
-        service.postMessage(OWNER, 7L, new PostMessageRequest("Luật lao động quy định gì?"));
+        service.beginTurn(OWNER, 7L, "Luật lao động quy định gì?");
 
         Message saved = captureSavedMessage();
         assertThat(saved.getRole()).isEqualTo(MessageRole.USER);
@@ -73,20 +87,40 @@ class ChatServiceTest {
         // Truy vấn có kèm userId nên hội thoại của người khác trả về rỗng.
         when(conversations.findByIdAndUserId(7L, "999")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.postMessage("999", 7L, new PostMessageRequest("cho tôi xem")))
+        assertThatThrownBy(() -> service.beginTurn("999", 7L, "cho tôi xem"))
                 .isInstanceOf(ConversationNotFoundException.class);
 
         verify(messages, never()).save(any());
     }
 
     @Test
+    @DisplayName("Lịch sử gửi sang AI KHÔNG chứa chính câu hỏi vừa gửi")
+    void historyExcludesTheNewQuestion() {
+        ownedConversation(conversation("Có sẵn"));
+        when(messages.findByConversationIdOrderByCreatedAtAsc(7L))
+                .thenReturn(List.of(
+                        message(MessageRole.USER, "câu cũ"),
+                        message(MessageRole.ASSISTANT, "trả lời cũ")));
+        echoSavedMessage();
+
+        var prepared = service.beginTurn(OWNER, 7L, "câu hỏi MỚI");
+
+        // Lấy lịch sử trước khi lưu, nếu không câu hỏi mới sẽ lặp hai lần trong prompt.
+        assertThat(prepared.history()).hasSize(2);
+        assertThat(prepared.history()).noneMatch(h -> h.content().equals("câu hỏi MỚI"));
+        // role phải là chữ thường: Python khai Literal["user","assistant"].
+        assertThat(prepared.history().get(0).role()).isEqualTo("user");
+        assertThat(prepared.history().get(1).role()).isEqualTo("assistant");
+    }
+
+    @Test
     @DisplayName("Tin nhắn đầu tiên trở thành tiêu đề, thay cho tên mặc định")
     void firstMessageBecomesTitle() {
         var conversation = conversation("Hội thoại mới");
-        when(conversations.findByIdAndUserId(7L, OWNER)).thenReturn(Optional.of(conversation));
+        ownedConversation(conversation);
         echoSavedMessage();
 
-        service.postMessage(OWNER, 7L, new PostMessageRequest("Nghỉ thai sản   được\n bao nhiêu tháng?"));
+        service.beginTurn(OWNER, 7L, "Nghỉ thai sản   được\n bao nhiêu tháng?");
 
         // Xuống dòng và khoảng trắng thừa bị gộp lại thành một dòng gọn.
         assertThat(conversation.getTitle()).isEqualTo("Nghỉ thai sản được bao nhiêu tháng?");
@@ -96,12 +130,27 @@ class ChatServiceTest {
     @DisplayName("Tiêu đề người dùng tự đặt thì không bị tin nhắn ghi đè")
     void customTitleIsKept() {
         var conversation = conversation("Hỏi về hợp đồng");
-        when(conversations.findByIdAndUserId(7L, OWNER)).thenReturn(Optional.of(conversation));
+        ownedConversation(conversation);
         echoSavedMessage();
 
-        service.postMessage(OWNER, 7L, new PostMessageRequest("câu hỏi khác hẳn"));
+        service.beginTurn(OWNER, 7L, "câu hỏi khác hẳn");
 
         assertThat(conversation.getTitle()).isEqualTo("Hỏi về hợp đồng");
+    }
+
+    @Test
+    @DisplayName("Lưu câu trả lời: role ASSISTANT kèm citations và thời gian phản hồi")
+    void completeTurnStoresAssistantMessage() {
+        echoSavedMessage();
+        when(conversations.findById(7L)).thenReturn(Optional.of(conversation("Có sẵn")));
+
+        service.completeTurn(7L, "Theo Bộ luật Lao động...", "[{\"law_name\":\"BLLĐ\"}]", 1200);
+
+        Message saved = captureSavedMessage();
+        assertThat(saved.getRole()).isEqualTo(MessageRole.ASSISTANT);
+        assertThat(saved.getContent()).isEqualTo("Theo Bộ luật Lao động...");
+        assertThat(saved.getCitations()).contains("BLLĐ");
+        assertThat(saved.getLatencyMs()).isEqualTo(1200);
     }
 
     @Test
@@ -121,7 +170,7 @@ class ChatServiceTest {
     @DisplayName("Xoá hội thoại: xoá message TRƯỚC rồi mới xoá hội thoại")
     void deleteRemovesMessagesFirst() {
         var conversation = conversation("Có sẵn");
-        when(conversations.findByIdAndUserId(7L, OWNER)).thenReturn(Optional.of(conversation));
+        ownedConversation(conversation);
 
         service.delete(OWNER, 7L);
 
@@ -132,15 +181,17 @@ class ChatServiceTest {
     }
 
     @Test
-    @DisplayName("Danh sách chỉ lấy hội thoại của chính user đó")
+    @DisplayName("Danh sách chỉ lấy hội thoại của chính user đó, kèm số tin nhắn")
     void listIsScopedToUser() {
         when(conversations.findByUserIdOrderByUpdatedAtDesc(OWNER))
                 .thenReturn(List.of(conversation("Của tôi")));
+        when(messages.countByConversationId(7L)).thenReturn(3L);
 
         var result = service.list(OWNER);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).title()).isEqualTo("Của tôi");
+        assertThat(result.get(0).messageCount()).isEqualTo(3);
         verify(conversations).findByUserIdOrderByUpdatedAtDesc(OWNER);
     }
 }

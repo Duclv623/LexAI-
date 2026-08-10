@@ -1,7 +1,17 @@
-import type { AuthResponse, ChatSession, LlmProvider, SendMessageResponse, User } from "./types";
+import type {
+  AuthResponse,
+  ChatMessage,
+  ChatSession,
+  LlmProvider,
+  RetrievedChunk,
+  SendMessageResponse,
+  User,
+} from "./types";
 import { getToken, clearToken } from "./auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Trỏ vào API gateway (Spring), không gọi thẳng từng service.
+// Gateway lo verify token, rate limit và CORS trước khi chuyển tiếp.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
@@ -29,41 +39,147 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   }
-  return res.json();
+
+  // DELETE trả 204 không có thân. res.json() trên thân rỗng sẽ ném lỗi.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+/* ------------------------------------------------------------------------- *
+ * Shape phía server (Spring) — KHÁC với shape mà UI đang dùng.
+ *
+ * Toàn bộ việc quy đổi gom vào file này. Backend giữ ngôn ngữ miền của nó
+ * (conversation, role viết hoa), còn UI giữ nguyên tên cũ (session, role
+ * viết thường) nên không phải sửa component nào.
+ * ------------------------------------------------------------------------- */
+
+interface SpringAuthResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  account: User;
+}
+
+interface ServerMessage {
+  id: number;
+  conversationId: number;
+  role: "USER" | "ASSISTANT";
+  content: string;
+  citations?: unknown;
+  latencyMs?: number | null;
+  createdAt: string;
+}
+
+interface ServerConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount?: number;
+  messages?: ServerMessage[];
+}
+
+interface ServerTurn {
+  userMessage: ServerMessage;
+  assistantMessage: ServerMessage;
+  retrievedChunks?: unknown;
+}
+
+function toAuthResponse(res: SpringAuthResponse): AuthResponse {
+  return { token: res.accessToken, user: res.account };
+}
+
+function toMessage(m: ServerMessage): ChatMessage {
+  return {
+    id: m.id,
+    sessionId: m.conversationId,
+    role: m.role.toLowerCase() as ChatMessage["role"],
+    content: m.content,
+    citations: (m.citations as ChatMessage["citations"]) ?? null,
+    createdAt: m.createdAt,
+    latencyMs: m.latencyMs ?? null,
+  };
+}
+
+function toSession(c: ServerConversation): ChatSession {
+  return {
+    id: c.id,
+    title: c.title,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    messageCount: c.messageCount,
+    messages: c.messages?.map(toMessage),
+  };
 }
 
 export const api = {
-  // Auth
-  register: (email: string, password: string, fullName?: string) =>
-    request<AuthResponse>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password, fullName }),
-    }),
+  // ----- Auth -----
+  register: async (email: string, password: string, fullName?: string) =>
+    toAuthResponse(
+      await request<SpringAuthResponse>("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ email, password, fullName }),
+      })
+    ),
 
-  login: (email: string, password: string) =>
-    request<AuthResponse>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }),
+  login: async (email: string, password: string) =>
+    toAuthResponse(
+      await request<SpringAuthResponse>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      })
+    ),
 
-  me: () => request<User>("/auth/me"),
+  me: () => request<User>("/api/auth/me"),
 
   changePassword: (currentPassword: string, newPassword: string) =>
-    request<{ success: boolean }>("/auth/password", {
+    request<{ success: boolean }>("/api/auth/password", {
       method: "PATCH",
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
-  // Chat
-  sendMessage: (question: string, sessionId?: number, provider?: LlmProvider) =>
-    request<SendMessageResponse>("/chat", {
-      method: "POST",
-      body: JSON.stringify({ question, sessionId, provider }),
-    }),
+  // ----- Chat -----
+  /**
+   * Chưa có phiên thì tạo hội thoại trước rồi mới gửi — hai request thay vì một.
+   * Đây là cái giá của việc API REST tách bạch "tạo hội thoại" và "gửi tin nhắn",
+   * đổi lại mỗi endpoint làm đúng một việc.
+   */
+  sendMessage: async (
+    question: string,
+    sessionId?: number,
+    provider?: LlmProvider
+  ): Promise<SendMessageResponse> => {
+    const id =
+      sessionId ??
+      (
+        await request<ServerConversation>("/api/chat/conversations", {
+          method: "POST",
+          body: JSON.stringify({}),
+        })
+      ).id;
 
-  // Sessions
-  listSessions: () => request<ChatSession[]>("/sessions"),
-  getSession: (id: number) => request<ChatSession>(`/sessions/${id}`),
-  deleteSession: (id: number) =>
-    request<{ deleted: boolean }>(`/sessions/${id}`, { method: "DELETE" }),
+    const turn = await request<ServerTurn>(`/api/chat/conversations/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content: question, provider }),
+    });
+
+    return {
+      sessionId: id,
+      userMessage: toMessage(turn.userMessage),
+      assistantMessage: toMessage(turn.assistantMessage),
+      retrievedChunks: (turn.retrievedChunks ?? []) as RetrievedChunk[],
+    };
+  },
+
+  // ----- Sessions (bên server gọi là conversations) -----
+  listSessions: async () =>
+    (await request<ServerConversation[]>("/api/chat/conversations")).map(toSession),
+
+  getSession: async (id: number) =>
+    toSession(await request<ServerConversation>(`/api/chat/conversations/${id}`)),
+
+  deleteSession: async (id: number) => {
+    await request<void>(`/api/chat/conversations/${id}`, { method: "DELETE" });
+    return { deleted: true };
+  },
 };

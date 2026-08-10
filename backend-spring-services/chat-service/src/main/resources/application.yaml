@@ -28,3 +28,11 @@ spring:
 
 server:
   port: ${CHAT_SERVER_PORT:8082}
+
+app:
+  ai:
+    # Gọi THẲNG ai-service, không vòng qua gateway: đây là giao tiếp nội bộ giữa hai
+    # service, không nên bị tính vào rate limit dành cho người dùng cuối.
+    base-url: ${CHAT_AI_BASE_URL:http://localhost:8000}
+    # Rộng tay vì sinh câu trả lời bằng LLM có thể mất hơn chục giây.
+    timeout-seconds: ${CHAT_AI_TIMEOUT_SECONDS:90}

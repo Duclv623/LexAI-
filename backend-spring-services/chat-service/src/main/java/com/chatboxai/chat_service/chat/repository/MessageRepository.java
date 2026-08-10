@@ -10,6 +10,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     List<Message> findByConversationIdOrderByCreatedAtAsc(Long conversationId);
 
+    long countByConversationId(Long conversationId);
+
     /**
      * Xoá theo hội thoại. Vì Message không khai báo quan hệ @ManyToOne nên JPA
      * không tự cascade — xoá hội thoại mà quên dòng này sẽ để lại message mồ côi.

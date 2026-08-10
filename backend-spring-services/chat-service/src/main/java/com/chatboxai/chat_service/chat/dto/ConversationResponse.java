@@ -15,13 +15,15 @@ public record ConversationResponse(
         Long id,
         String title,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        long messageCount
 ) {
-    public static ConversationResponse from(Conversation conversation) {
+    public static ConversationResponse from(Conversation conversation, long messageCount) {
         return new ConversationResponse(
                 conversation.getId(),
                 conversation.getTitle(),
                 conversation.getCreatedAt(),
-                conversation.getUpdatedAt());
+                conversation.getUpdatedAt(),
+                messageCount);
     }
 }

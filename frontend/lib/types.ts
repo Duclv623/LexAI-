@@ -39,11 +39,10 @@ export interface RetrievedChunk {
 
 export interface ChatSession {
   id: number;
-  userId: number | null;
   title: string;
   createdAt: string;
   updatedAt: string;
-  _count?: { messages: number };
+  messageCount?: number;
   messages?: ChatMessage[];
 }
 

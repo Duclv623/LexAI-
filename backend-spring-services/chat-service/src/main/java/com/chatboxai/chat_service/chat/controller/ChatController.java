@@ -17,9 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.chatboxai.chat_service.chat.dto.ConversationDetailResponse;
 import com.chatboxai.chat_service.chat.dto.ConversationResponse;
 import com.chatboxai.chat_service.chat.dto.CreateConversationRequest;
-import com.chatboxai.chat_service.chat.dto.MessageResponse;
 import com.chatboxai.chat_service.chat.dto.PostMessageRequest;
+import com.chatboxai.chat_service.chat.dto.TurnResponse;
 import com.chatboxai.chat_service.chat.service.ChatService;
+import com.chatboxai.chat_service.chat.service.ChatTurnService;
 
 import jakarta.validation.Valid;
 
@@ -28,9 +29,11 @@ import jakarta.validation.Valid;
 public class ChatController {
 
     private final ChatService chatService;
+    private final ChatTurnService chatTurnService;
 
-    public ChatController(ChatService chatService) {
+    public ChatController(ChatService chatService, ChatTurnService chatTurnService) {
         this.chatService = chatService;
+        this.chatTurnService = chatTurnService;
     }
 
     @PostMapping
@@ -51,13 +54,22 @@ public class ChatController {
         return chatService.detail(userId(jwt), id);
     }
 
+    /**
+     * Gửi câu hỏi và nhận luôn câu trả lời.
+     *
+     * TẠM THỜI ĐỒNG BỘ: request bị giữ suốt thời gian LLM chạy (3–10 giây). Đây là
+     * bước trung gian để có bản chạy được; hướng đi tiếp là trả 202 rồi đẩy câu trả
+     * lời về sau qua SSE hoặc hàng đợi.
+     */
     @PostMapping("/{id}/messages")
     @ResponseStatus(HttpStatus.CREATED)
-    public MessageResponse postMessage(
+    public TurnResponse postMessage(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
             @Valid @RequestBody PostMessageRequest request) {
-        return chatService.postMessage(userId(jwt), id, request);
+        // getTokenValue() là chuỗi token GỐC, truyền tiếp sang ai-service để nó tự
+        // verify — chat-service không tự phong cho mình quyền nói thay người dùng.
+        return chatTurnService.send(userId(jwt), jwt.getTokenValue(), id, request);
     }
 
     @DeleteMapping("/{id}")

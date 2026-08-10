@@ -11,6 +11,7 @@ import com.chatboxai.auth_service.account.entity.Account;
 import com.chatboxai.auth_service.account.repository.AccountRepository;
 import com.chatboxai.auth_service.auth.dto.AccountResponse;
 import com.chatboxai.auth_service.auth.dto.AuthResponse;
+import com.chatboxai.auth_service.auth.dto.ChangePasswordRequest;
 import com.chatboxai.auth_service.auth.dto.LoginRequest;
 import com.chatboxai.auth_service.auth.dto.RegisterRequest;
 
@@ -58,6 +59,31 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found"));
 
         return AccountResponse.from(account);
+    }
+
+    /**
+     * Đổi mật khẩu.
+     *
+     * HẠN CHẾ ĐÃ BIẾT: token cũ vẫn còn hiệu lực sau khi đổi mật khẩu, vì JWT là
+     * stateless — server không giữ danh sách token đã cấp nên không thu hồi được.
+     * Muốn thu hồi thật thì cần thêm refresh token + danh sách đen, hoặc gắn số phiên
+     * bản mật khẩu vào claim và đối chiếu mỗi lần verify.
+     */
+    public void changePassword(Long accountId, ChangePasswordRequest request) {
+        Account account = accounts.findById(accountId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found"));
+
+        // Có token rồi vẫn phải xác nhận mật khẩu cũ: token nằm trong localStorage
+        // nên hoàn toàn có thể bị lấy cắp.
+        if (!passwordEncoder.matches(request.currentPassword(), account.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại không đúng");
+        }
+        if (passwordEncoder.matches(request.newPassword(), account.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải khác mật khẩu cũ");
+        }
+
+        account.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        accounts.save(account);
     }
 
     private AuthResponse toAuthResponse(Account account) {

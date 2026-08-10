@@ -53,6 +53,20 @@ public class Message {
     @Column(nullable = false, name = "created_at")
     private Instant createdAt;
 
+    /**
+     * Trích dẫn nguồn luật, lưu nguyên chuỗi JSON do ai-service trả về.
+     *
+     * Không tách thành bảng riêng vì chat-service không hề diễn giải nội dung này —
+     * nó chỉ cầm hộ rồi trả lại cho frontend. Tách ra sẽ phải map qua lại mỗi lần
+     * ai-service đổi format, đổi lấy một khả năng truy vấn mà chưa ai cần.
+     */
+    @Column(columnDefinition = "text")
+    private String citations;
+
+    /** Thời gian ai-service sinh câu trả lời, để đo và hiển thị. Chỉ có ở ASSISTANT. */
+    @Column(name = "latency_ms")
+    private Integer latencyMs;
+
     @PrePersist
     protected void prePersist() {
         if (createdAt == null) {
@@ -90,5 +104,21 @@ public class Message {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getCitations() {
+        return citations;
+    }
+
+    public void setCitations(String citations) {
+        this.citations = citations;
+    }
+
+    public Integer getLatencyMs() {
+        return latencyMs;
+    }
+
+    public void setLatencyMs(Integer latencyMs) {
+        this.latencyMs = latencyMs;
     }
 }

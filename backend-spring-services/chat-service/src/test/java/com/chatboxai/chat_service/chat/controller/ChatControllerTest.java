@@ -23,6 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.chatboxai.chat_service.chat.service.ChatService;
+import com.chatboxai.chat_service.chat.service.ChatTurnService;
 import com.chatboxai.chat_service.chat.service.ConversationNotFoundException;
 import com.chatboxai.chat_service.config.SecurityConfig;
 
@@ -36,8 +37,12 @@ class ChatControllerTest {
     @MockitoBean
     private ChatService chatService;
 
+    @MockitoBean
+    private ChatTurnService chatTurnService;
+
     /** SecurityConfig cần một JwtDecoder; test dùng post-processor jwt() nên nó không bị gọi. */
     @MockitoBean
+    @SuppressWarnings("unused") // Spring injects this mock into the test ApplicationContext.
     private JwtDecoder jwtDecoder;
 
     @Test
@@ -82,6 +87,19 @@ class ChatControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.fields.content").exists());
+    }
+
+    @Test
+    @DisplayName("Gửi tin nhắn: token GỐC được chuyển tiếp xuống để gọi ai-service")
+    void rawTokenIsForwarded() throws Exception {
+        mvc.perform(post("/api/chat/conversations/7/messages")
+                        .with(jwt().jwt(j -> j.subject("42").tokenValue("token-goc-cua-user")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"Nghỉ thai sản mấy tháng?\",\"provider\":\"gemini\"}"))
+                .andExpect(status().isCreated());
+
+        // Nếu chat-service tự ký token mới hoặc bỏ trống, ai-service sẽ không biết ai hỏi.
+        verify(chatTurnService).send(eq("42"), eq("token-goc-cua-user"), eq(7L), any());
     }
 
     @Test
