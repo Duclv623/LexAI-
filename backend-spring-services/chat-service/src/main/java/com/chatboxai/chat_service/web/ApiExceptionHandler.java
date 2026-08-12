@@ -1,4 +1,4 @@
-package com.chatboxai.chat_service.chat.controller;
+package com.chatboxai.chat_service.web;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 
-import com.chatboxai.chat_service.chat.dto.ApiError;
 import com.chatboxai.chat_service.chat.service.ConversationNotFoundException;
 
 @RestControllerAdvice

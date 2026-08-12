@@ -1,4 +1,4 @@
-package com.chatboxai.chat_service.chat.dto;
+package com.chatboxai.chat_service.web;
 
 import java.util.Map;
 

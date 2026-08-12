@@ -1,4 +1,4 @@
-package com.chatboxai.api_gateway.config;
+package com.chatboxai.api_gateway.filter;
 
 import java.io.IOException;
 import java.util.Map;

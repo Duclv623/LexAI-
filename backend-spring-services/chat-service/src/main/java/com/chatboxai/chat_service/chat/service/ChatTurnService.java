@@ -42,7 +42,7 @@ public class ChatTurnService {
         ChatService.PreparedTurn prepared = chatService.beginTurn(userId, conversationId, question);
 
         // 2) KHÔNG transaction: gọi LLM, mất vài giây
-        AiRagResponse ai = aiClient.ask(bearerToken, request.providerOrDefault(), question, prepared.history());
+        AiRagResponse ai = aiClient.ask(bearerToken, question, prepared.history());
 
         // 3) transaction ngắn: lưu câu trả lời
         String citationsJson = isEmpty(ai.citations()) ? null : ai.citations().toString();

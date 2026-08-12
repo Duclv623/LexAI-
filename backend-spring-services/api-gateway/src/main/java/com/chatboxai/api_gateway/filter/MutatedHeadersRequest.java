@@ -1,4 +1,4 @@
-package com.chatboxai.api_gateway.config;
+package com.chatboxai.api_gateway.filter;
 
 import java.util.ArrayList;
 import java.util.Collections;

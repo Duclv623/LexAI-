@@ -1,4 +1,4 @@
-package com.chatboxai.api_gateway.config;
+package com.chatboxai.api_gateway.filter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;

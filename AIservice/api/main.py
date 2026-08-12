@@ -49,7 +49,7 @@ def health():
         return {"status": "error", "detail": str(e)}
 
 
-def _run_and_wrap(req: RagRequest, provider: str) -> RagResponse:
+def _run_and_wrap(req: RagRequest) -> RagResponse:
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="question không được để trống")
 
@@ -59,14 +59,13 @@ def _run_and_wrap(req: RagRequest, provider: str) -> RagResponse:
             question=req.question,
             history=req.history,
             top_k=req.top_k,
-            provider=provider,
         )
     except Exception as e:
-        logger.exception(f"RAG pipeline ({provider}) lỗi")
+        logger.exception("RAG pipeline lỗi")
         raise HTTPException(status_code=500, detail=str(e))
 
     latency_ms = int((time.time() - start) * 1000)
-    logger.info(f"RAG [{provider}] xong trong {latency_ms}ms — câu hỏi: {req.question[:50]}...")
+    logger.info(f"RAG xong trong {latency_ms}ms — câu hỏi: {req.question[:50]}...")
 
     return RagResponse(
         answer=result["answer"],
@@ -78,16 +77,6 @@ def _run_and_wrap(req: RagRequest, provider: str) -> RagResponse:
 
 @app.post("/rag", response_model=RagResponse)
 def rag_endpoint(req: RagRequest, user: dict = Depends(require_user)):
-    # Giữ endpoint cũ để không break BE — mặc định Gemini
+    """Endpoint sinh câu trả lời duy nhất. Chỉ còn một mô hình nên không cần tách theo provider."""
     logger.info("RAG request từ user id=%s", user["id"])
-    return _run_and_wrap(req, provider="gemini")
-
-
-@app.post("/rag/gemini", response_model=RagResponse)
-def rag_gemini(req: RagRequest, user: dict = Depends(require_user)):
-    return _run_and_wrap(req, provider="gemini")
-
-
-@app.post("/rag/groq", response_model=RagResponse)
-def rag_groq(req: RagRequest, user: dict = Depends(require_user)):
-    return _run_and_wrap(req, provider="groq")
+    return _run_and_wrap(req)

@@ -2,7 +2,6 @@ import type {
   AuthResponse,
   ChatMessage,
   ChatSession,
-  LlmProvider,
   RetrievedChunk,
   SendMessageResponse,
   User,
@@ -146,8 +145,7 @@ export const api = {
    */
   sendMessage: async (
     question: string,
-    sessionId?: number,
-    provider?: LlmProvider
+    sessionId?: number
   ): Promise<SendMessageResponse> => {
     const id =
       sessionId ??
@@ -160,7 +158,7 @@ export const api = {
 
     const turn = await request<ServerTurn>(`/api/chat/conversations/${id}/messages`, {
       method: "POST",
-      body: JSON.stringify({ content: question, provider }),
+      body: JSON.stringify({ content: question }),
     });
 
     return {

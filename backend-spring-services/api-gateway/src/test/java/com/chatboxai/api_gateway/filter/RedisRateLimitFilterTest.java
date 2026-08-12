@@ -1,4 +1,6 @@
-package com.chatboxai.api_gateway.config;
+package com.chatboxai.api_gateway.filter;
+
+import com.chatboxai.api_gateway.config.RateLimitProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

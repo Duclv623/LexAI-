@@ -3,6 +3,7 @@ package com.chatboxai.chat_service.chat.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,6 +27,7 @@ import com.chatboxai.chat_service.chat.service.ChatService;
 import com.chatboxai.chat_service.chat.service.ChatTurnService;
 import com.chatboxai.chat_service.chat.service.ConversationNotFoundException;
 import com.chatboxai.chat_service.config.SecurityConfig;
+import com.chatboxai.chat_service.web.ApiExceptionHandler;
 
 @WebMvcTest(ChatController.class)
 @Import({SecurityConfig.class, ApiExceptionHandler.class})
@@ -40,9 +42,12 @@ class ChatControllerTest {
     @MockitoBean
     private ChatTurnService chatTurnService;
 
-    /** SecurityConfig cần một JwtDecoder; test dùng post-processor jwt() nên nó không bị gọi. */
+    /**
+     * SecurityConfig bật oauth2ResourceServer nên context cần một JwtDecoder.
+     * @WebMvcTest không nạp autoconfig của resource server, phải tự cấp mock.
+     * Các test dùng post-processor jwt() nên decoder này không bao giờ bị gọi thật.
+     */
     @MockitoBean
-    @SuppressWarnings("unused") // Spring injects this mock into the test ApplicationContext.
     private JwtDecoder jwtDecoder;
 
     @Test
@@ -50,6 +55,10 @@ class ChatControllerTest {
     void withoutTokenIsUnauthorized() throws Exception {
         mvc.perform(get("/api/chat/conversations"))
                 .andExpect(status().isUnauthorized());
+
+        // Chặn từ vòng ngoài: không có header Authorization thì bị từ chối ngay,
+        // decoder còn chẳng được gọi tới. Không có token cũng không tốn công verify.
+        verifyNoInteractions(jwtDecoder, chatService);
     }
 
     @Test
@@ -95,7 +104,7 @@ class ChatControllerTest {
         mvc.perform(post("/api/chat/conversations/7/messages")
                         .with(jwt().jwt(j -> j.subject("42").tokenValue("token-goc-cua-user")))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"content\":\"Nghỉ thai sản mấy tháng?\",\"provider\":\"gemini\"}"))
+                        .content("{\"content\":\"Nghỉ thai sản mấy tháng?\"}"))
                 .andExpect(status().isCreated());
 
         // Nếu chat-service tự ký token mới hoặc bỏ trống, ai-service sẽ không biết ai hỏi.

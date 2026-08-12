@@ -28,7 +28,6 @@ public class AiClient {
     private final RestClient http;
 
     public AiClient(
-            RestClient.Builder builder,
             @Value("${app.ai.base-url}") String baseUrl,
             @Value("${app.ai.timeout-seconds}") long timeoutSeconds) {
 
@@ -38,7 +37,13 @@ public class AiClient {
         // Để mặc định (vô hạn) thì ai-service treo là chat-service treo theo vĩnh viễn.
         factory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
 
-        this.http = builder.baseUrl(baseUrl).requestFactory(factory).build();
+        // Dùng RestClient.builder() tĩnh thay vì inject RestClient.Builder: Spring Boot 4
+        // tách starter thành nhiều mảnh nhỏ, và autoconfig cấp bean Builder KHÔNG còn đi
+        // kèm spring-boot-starter-webmvc nữa — inject vào là context chết lúc khởi động.
+        this.http = RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(factory)
+                .build();
     }
 
     /**
@@ -48,14 +53,13 @@ public class AiClient {
      */
     public AiRagResponse ask(
             String bearerToken,
-            String provider,
             String question,
             List<AiRagRequest.AiHistoryItem> history) {
 
-        log.info("Hỏi ai-service (provider={}, {} lượt lịch sử)", provider, history.size());
+        log.info("Hỏi ai-service ({} lượt lịch sử)", history.size());
 
         return http.post()
-                .uri("/rag/{provider}", provider)
+                .uri("/rag")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
                 .body(new AiRagRequest(question, history.isEmpty() ? null : history, TOP_K))
                 .retrieve()

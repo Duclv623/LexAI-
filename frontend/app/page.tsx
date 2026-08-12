@@ -10,7 +10,7 @@ export default function RootRedirect() {
 
   useEffect(() => {
     const token = getToken();
-    router.replace(token ? "/chat/gemini" : "/login");
+    router.replace(token ? "/chat" : "/login");
   }, [router]);
 
   return (

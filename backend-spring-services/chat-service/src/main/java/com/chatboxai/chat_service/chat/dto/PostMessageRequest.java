@@ -1,7 +1,6 @@
 package com.chatboxai.chat_service.chat.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -14,13 +13,6 @@ import jakarta.validation.constraints.Size;
 public record PostMessageRequest(
         @NotBlank(message = "Nội dung tin nhắn không được để trống")
         @Size(max = 8000, message = "Nội dung tối đa 8000 ký tự")
-        String content,
-
-        // Chặn ngay ở đây thay vì để ai-service trả 500: nó chỉ nhận đúng hai giá trị này.
-        @Pattern(regexp = "gemini|groq", message = "provider chỉ nhận 'gemini' hoặc 'groq'")
-        String provider
+        String content
 ) {
-    public String providerOrDefault() {
-        return provider == null || provider.isBlank() ? "gemini" : provider;
-    }
 }

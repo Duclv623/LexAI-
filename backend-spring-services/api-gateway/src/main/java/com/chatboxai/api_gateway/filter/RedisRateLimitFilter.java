@@ -1,4 +1,6 @@
-package com.chatboxai.api_gateway.config;
+package com.chatboxai.api_gateway.filter;
+
+import com.chatboxai.api_gateway.config.RateLimitProperties;
 
 import java.io.IOException;
 import java.util.Comparator;

@@ -7,45 +7,33 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from config.config import (
-    GOOGLE_API_KEY,
-    LLM_MODEL_NAME,
-    GROQ_API_KEY,
-    GROQ_MODEL_NAME,
-)
+from config.config import GOOGLE_API_KEY, LLM_MODEL_NAME
 from api.retriever import retrieve
 from api.schemas import ChatMessage, Citation, RetrievedChunk
 
 
-_llms: dict[str, BaseChatModel] = {}
+_llm: Optional[BaseChatModel] = None
 
 
-def get_llm(provider: str = "gemini") -> BaseChatModel:
-    """Singleton LLM theo provider ('gemini' hoặc 'groq')."""
-    if provider in _llms:
-        return _llms[provider]
+def get_llm() -> BaseChatModel:
+    """
+    Singleton LLM (Gemini).
 
-    if provider == "groq":
-        if not GROQ_API_KEY:
-            raise ValueError("GROQ_API_KEY không được tìm thấy trong .env")
-        from langchain_groq import ChatGroq
-        _llms[provider] = ChatGroq(
-            model=GROQ_MODEL_NAME,
-            temperature=0.2,
-            groq_api_key=GROQ_API_KEY,
-        )
-    elif provider == "gemini":
+    Giữ lại một instance thay vì tạo mới mỗi request: khởi tạo client kéo theo
+    thiết lập kết nối và đọc cấu hình, làm lại mỗi lần là phí.
+    """
+    global _llm
+
+    if _llm is None:
         if not GOOGLE_API_KEY:
             raise ValueError("GOOGLE_API_KEY không được tìm thấy trong .env")
-        _llms[provider] = ChatGoogleGenerativeAI(
+        _llm = ChatGoogleGenerativeAI(
             model=LLM_MODEL_NAME,
             temperature=0.2,
             google_api_key=GOOGLE_API_KEY,
         )
-    else:
-        raise ValueError(f"Provider không hỗ trợ: {provider!r} (chỉ chấp nhận 'gemini' | 'groq')")
 
-    return _llms[provider]
+    return _llm
 
 
 def format_docs(docs: List[Document]) -> str:
@@ -259,7 +247,6 @@ def run_rag(
     question: str,
     history: Optional[List[ChatMessage]] = None,
     top_k: int = 5,
-    provider: str = "gemini",
 ):
     """Chạy RAG pipeline đầy đủ → trả về dict {answer, citations, retrieved_chunks}."""
 
@@ -269,8 +256,8 @@ def run_rag(
     # 2. Format context (rỗng nếu không có docs — LLM sẽ tự từ chối theo system prompt)
     context = format_docs(docs)
 
-    # 3. Gọi LLM theo provider
-    llm = get_llm(provider)
+    # 3. Gọi LLM
+    llm = get_llm()
     messages = build_messages(question, context, history)
 
     try:

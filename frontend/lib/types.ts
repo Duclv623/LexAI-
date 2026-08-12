@@ -1,5 +1,3 @@
-export type LlmProvider = "gemini" | "groq";
-
 export interface User {
   id: number;
   email: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
@@ -9,13 +9,7 @@ import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import { api } from "@/lib/api";
 import { getToken, getStoredUser, setStoredUser, clearToken } from "@/lib/auth";
-import type {
-  ChatMessage,
-  ChatSession,
-  Citation,
-  LlmProvider,
-  User,
-} from "@/lib/types";
+import type { ChatMessage, ChatSession, Citation, User } from "@/lib/types";
 
 function parseCitations(raw: unknown): Citation[] {
   if (Array.isArray(raw)) return raw as Citation[];
@@ -30,15 +24,8 @@ function parseCitations(raw: unknown): Citation[] {
   return [];
 }
 
-function normalizeProvider(raw: string | string[] | undefined): LlmProvider {
-  const v = Array.isArray(raw) ? raw[0] : raw;
-  return v === "groq" ? "groq" : "gemini";
-}
-
-export default function ChatProviderPage() {
+export default function ChatPage() {
   const router = useRouter();
-  const params = useParams();
-  const provider = normalizeProvider(params?.provider as string | undefined);
 
   const [authChecking, setAuthChecking] = useState(true);
   const [user, setUser] = useState<User | null>(null);
@@ -80,13 +67,6 @@ export default function ChatProviderPage() {
   useEffect(() => {
     if (!authChecking) refreshSessions();
   }, [authChecking, refreshSessions]);
-
-  // Reset messages/session khi đổi provider (mở tab khác)
-  useEffect(() => {
-    setCurrentSessionId(null);
-    setMessages([]);
-    setError(null);
-  }, [provider]);
 
   async function handleSelect(id: number) {
     if (id === currentSessionId) return;
@@ -137,11 +117,7 @@ export default function ChatProviderPage() {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const res = await api.sendMessage(
-        question,
-        currentSessionId || undefined,
-        provider,
-      );
+      const res = await api.sendMessage(question, currentSessionId || undefined);
       setCurrentSessionId(res.sessionId);
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== tempUserMsg.id),
@@ -175,7 +151,7 @@ export default function ChatProviderPage() {
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <TopBar user={user} provider={provider} />
+      <TopBar user={user} />
 
       <div className="flex min-h-0 flex-1">
         <Sidebar
