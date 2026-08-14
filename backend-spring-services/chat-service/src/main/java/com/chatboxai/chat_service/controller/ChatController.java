@@ -18,6 +18,7 @@ import com.chatboxai.chat_service.dto.request.CreateConversationRequestDTO;
 import com.chatboxai.chat_service.dto.request.PostMessageRequestDTO;
 import com.chatboxai.chat_service.dto.response.ConversationDetailResponseDTO;
 import com.chatboxai.chat_service.dto.response.ConversationResponseDTO;
+import com.chatboxai.chat_service.dto.response.CustomResponse;
 import com.chatboxai.chat_service.dto.response.TurnResponseDTO;
 import com.chatboxai.chat_service.service.ChatService;
 import com.chatboxai.chat_service.service.ChatTurnService;
@@ -35,32 +36,36 @@ public class ChatController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ConversationResponseDTO create(
+    public CustomResponse<ConversationResponseDTO> create(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CreateConversationRequestDTO request) {
-        return chatService.create(userId(jwt), request);
+        return new CustomResponse<>(true, chatService.create(userId(jwt), request), "Tạo hội thoại thành công");
     }
 
     @GetMapping
-    public List<ConversationResponseDTO> list(@AuthenticationPrincipal Jwt jwt) {
-        return chatService.list(userId(jwt));
+    public CustomResponse<List<ConversationResponseDTO>> list(@AuthenticationPrincipal Jwt jwt) {
+        return new CustomResponse<>(true, chatService.list(userId(jwt)), "Lấy danh sách hội thoại thành công");
     }
 
     @GetMapping("/{id}")
-    public ConversationDetailResponseDTO detail(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-        return chatService.detail(userId(jwt), id);
+    public CustomResponse<ConversationDetailResponseDTO> detail(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return new CustomResponse<>(true, chatService.detail(userId(jwt), id), "Lấy hội thoại thành công");
     }
 
     @PostMapping("/{id}/messages")
     @ResponseStatus(HttpStatus.CREATED)
-    public TurnResponseDTO postMessage(
+    public CustomResponse<TurnResponseDTO> postMessage(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
             @Valid @RequestBody PostMessageRequestDTO request) {
         // forward the raw token so ai-service can verify it itself
-        return chatTurnService.send(userId(jwt), jwt.getTokenValue(), id, request);
+        return new CustomResponse<>(true,
+                chatTurnService.send(userId(jwt), jwt.getTokenValue(), id, request),
+                "Gửi tin nhắn thành công");
     }
 
+    // 204 has no body by definition, so this one stays unwrapped
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {

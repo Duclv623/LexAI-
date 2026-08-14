@@ -44,6 +44,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/**
+ * Backend bọc mọi response nghiệp vụ trong CustomResponse {data, message, success}.
+ * UI chỉ cần phần data, nên bóc vỏ ngay tại đây thay vì rải res.data khắp nơi.
+ *
+ * Không áp dụng cho DELETE (204 không có thân) và các endpoint hạ tầng
+ * (/health, /.well-known/jwks.json) — chúng vẫn trả JSON trần.
+ */
+interface CustomResponse<T> {
+  data: T;
+  message?: string;
+  success: boolean;
+}
+
+async function requestData<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await request<CustomResponse<T>>(path, init)).data;
+}
+
 /* ------------------------------------------------------------------------- *
  * Shape phía server (Spring) — KHÁC với shape mà UI đang dùng.
  *
@@ -115,7 +132,7 @@ export const api = {
   // ----- Auth -----
   register: async (email: string, password: string, fullName?: string) =>
     toAuthResponse(
-      await request<SpringAuthResponse>("/api/auth/register", {
+      await requestData<SpringAuthResponse>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({ email, password, fullName }),
       })
@@ -123,16 +140,16 @@ export const api = {
 
   login: async (email: string, password: string) =>
     toAuthResponse(
-      await request<SpringAuthResponse>("/api/auth/login", {
+      await requestData<SpringAuthResponse>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       })
     ),
 
-  me: () => request<User>("/api/auth/me"),
+  me: () => requestData<User>("/api/auth/me"),
 
   changePassword: (currentPassword: string, newPassword: string) =>
-    request<{ success: boolean }>("/api/auth/password", {
+    request<CustomResponse<void>>("/api/auth/password", {
       method: "PATCH",
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
@@ -150,13 +167,13 @@ export const api = {
     const id =
       sessionId ??
       (
-        await request<ServerConversation>("/api/chat/conversations", {
+        await requestData<ServerConversation>("/api/chat/conversations", {
           method: "POST",
           body: JSON.stringify({}),
         })
       ).id;
 
-    const turn = await request<ServerTurn>(`/api/chat/conversations/${id}/messages`, {
+    const turn = await requestData<ServerTurn>(`/api/chat/conversations/${id}/messages`, {
       method: "POST",
       body: JSON.stringify({ content: question }),
     });
@@ -171,10 +188,10 @@ export const api = {
 
   // ----- Sessions (bên server gọi là conversations) -----
   listSessions: async () =>
-    (await request<ServerConversation[]>("/api/chat/conversations")).map(toSession),
+    (await requestData<ServerConversation[]>("/api/chat/conversations")).map(toSession),
 
   getSession: async (id: number) =>
-    toSession(await request<ServerConversation>(`/api/chat/conversations/${id}`)),
+    toSession(await requestData<ServerConversation>(`/api/chat/conversations/${id}`)),
 
   deleteSession: async (id: number) => {
     await request<void>(`/api/chat/conversations/${id}`, { method: "DELETE" });

@@ -1,7 +1,5 @@
 package com.chatboxai.auth_service.controller;
 
-import java.util.Map;
-
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +14,7 @@ import com.chatboxai.auth_service.dto.request.LoginRequestDTO;
 import com.chatboxai.auth_service.dto.request.RegisterRequestDTO;
 import com.chatboxai.auth_service.dto.response.AccountResponseDTO;
 import com.chatboxai.auth_service.dto.response.AuthResponseDTO;
+import com.chatboxai.auth_service.dto.response.CustomResponse;
 import com.chatboxai.auth_service.service.AuthService;
 
 import jakarta.validation.Valid;
@@ -29,25 +28,27 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public AuthResponseDTO register(@Valid @RequestBody RegisterRequestDTO request) {
-        return authService.register(request);
+    public CustomResponse<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
+        return new CustomResponse<>(true, authService.register(request), "Đăng ký thành công");
     }
 
     @PostMapping("/login")
-    public AuthResponseDTO login(@Valid @RequestBody LoginRequestDTO request) {
-        return authService.login(request);
+    public CustomResponse<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
+        return new CustomResponse<>(true, authService.login(request), "Đăng nhập thành công");
     }
 
     @GetMapping("/me")
-    public AccountResponseDTO me(@AuthenticationPrincipal Jwt jwt) {
-        return authService.me(Long.valueOf(jwt.getSubject()));
+    public CustomResponse<AccountResponseDTO> me(@AuthenticationPrincipal Jwt jwt) {
+        return new CustomResponse<>(true,
+                authService.me(Long.valueOf(jwt.getSubject())),
+                "Lấy thông tin tài khoản thành công");
     }
 
     @PatchMapping("/password")
-    public Map<String, Boolean> changePassword(
+    public CustomResponse<Void> changePassword(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChangePasswordRequestDTO request) {
         authService.changePassword(Long.valueOf(jwt.getSubject()), request);
-        return Map.of("success", true);
+        return new CustomResponse<>(true, "Đổi mật khẩu thành công");
     }
 }
