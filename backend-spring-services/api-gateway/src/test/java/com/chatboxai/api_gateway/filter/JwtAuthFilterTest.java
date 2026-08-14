@@ -11,15 +11,16 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
+
+import com.chatboxai.api_gateway.service.TokenValidationService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 class JwtAuthFilterTest {
 
-    private final JwtDecoder jwtDecoder = mock(JwtDecoder.class);
-    private final JwtAuthFilter filter = new JwtAuthFilter(jwtDecoder);
+    private final TokenValidationService tokenValidationService = mock(TokenValidationService.class);
+    private final JwtAuthFilter filter = new JwtAuthFilter(tokenValidationService);
 
     private static Jwt validJwt() {
         return Jwt.withTokenValue("good-token")
@@ -47,7 +48,7 @@ class JwtAuthFilterTest {
     @Test
     @DisplayName("Token rác -> 401")
     void protectedPathWithBadToken() throws Exception {
-        when(jwtDecoder.decode(anyString())).thenThrow(new JwtException("chữ ký sai"));
+        when(tokenValidationService.validate(anyString())).thenThrow(new JwtException("chữ ký sai"));
 
         var request = new MockHttpServletRequest("GET", "/api/chat/messages");
         request.addHeader("Authorization", "Bearer rubbish");
@@ -61,9 +62,26 @@ class JwtAuthFilterTest {
     }
 
     @Test
+    @DisplayName("Token chữ ký hợp lệ NHƯNG đã bị thu hồi -> 401, không đi tiếp")
+    void revokedTokenIsRejected() throws Exception {
+        when(tokenValidationService.validate("revoked-token"))
+                .thenThrow(new JwtException("Token đã bị thu hồi"));
+
+        var request = new MockHttpServletRequest("GET", "/api/chat/messages");
+        request.addHeader("Authorization", "Bearer revoked-token");
+        var response = new MockHttpServletResponse();
+        var chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(chain.getRequest()).isNull();
+    }
+
+    @Test
     @DisplayName("CHỐNG GIẢ MẠO: client tự khai X-User-Id bị thay bằng giá trị lấy từ token")
     void spoofedIdentityHeaderIsOverwritten() throws Exception {
-        when(jwtDecoder.decode("good-token")).thenReturn(validJwt());
+        when(tokenValidationService.validate("good-token")).thenReturn(validJwt());
 
         var request = new MockHttpServletRequest("GET", "/api/chat/messages");
         request.addHeader("Authorization", "Bearer good-token");

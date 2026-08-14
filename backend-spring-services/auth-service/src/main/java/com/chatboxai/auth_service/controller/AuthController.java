@@ -49,6 +49,12 @@ public class AuthController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChangePasswordRequestDTO request) {
         authService.changePassword(Long.valueOf(jwt.getSubject()), request);
-        return new CustomResponse<>(true, "Đổi mật khẩu thành công");
+        return new CustomResponse<>(true, "Đổi mật khẩu thành công, vui lòng đăng nhập lại");
+    }
+
+    @PostMapping("/logout")
+    public CustomResponse<Void> logout(@AuthenticationPrincipal Jwt jwt) {
+        authService.logout(Long.valueOf(jwt.getSubject()));
+        return new CustomResponse<>(true, "Đăng xuất thành công");
     }
 }

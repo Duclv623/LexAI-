@@ -10,14 +10,14 @@ import lombok.Setter;
 @Setter
 public class RegisterRequestDTO {
 
-    @Email
-    @NotBlank
+    @Email(message = "Email không đúng định dạng")
+    @NotBlank(message = "Vui lòng nhập email")
     private String email;
 
-    @NotBlank
-    @Size(min = 6, max = 100)
+    @NotBlank(message = "Vui lòng nhập mật khẩu")
+    @Size(min = 6, max = 100, message = "Mật khẩu từ 6 đến 100 ký tự")
     private String password;
 
-    @Size(max = 120)
+    @Size(max = 120, message = "Họ tên tối đa 120 ký tự")
     private String fullName;
 }

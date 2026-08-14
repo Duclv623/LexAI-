@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { User } from "@/lib/types";
 import { clearToken } from "@/lib/auth";
+import { api } from "@/lib/api";
 import ChangePasswordModal from "./ChangePasswordModal";
 
 const MODEL_LABEL = "Gemini 2.5 Flash";
@@ -33,7 +34,14 @@ export default function TopBar({ user }: { user: User | null }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  function handleLogout() {
+  async function handleLogout() {
+    // Server thu hồi token trước. Hỏng thì vẫn đăng xuất phía client: người dùng
+    // bấm Đăng xuất là phải ra, không được kẹt lại vì backend trục trặc.
+    try {
+      await api.logout();
+    } catch (e) {
+      console.error(e);
+    }
     clearToken();
     router.push("/login");
   }

@@ -3,11 +3,19 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { Scale, Loader2, BookOpen, Sparkles, ShieldCheck } from "lucide-react";
+import { ApiError } from "@/lib/api";
 
 interface Props {
   mode: "login" | "register";
   onSubmit: (data: { email: string; password: string; fullName?: string }) => Promise<void>;
 }
+
+const INPUT_BASE =
+  "w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none transition focus:ring-4 dark:bg-slate-800 dark:text-slate-100";
+const INPUT_OK =
+  "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/10 dark:border-slate-700 dark:focus:border-indigo-500";
+const INPUT_BAD =
+  "border-red-400 focus:border-red-500 focus:ring-red-500/10 dark:border-red-700 dark:focus:border-red-500";
 
 export default function AuthForm({ mode, onSubmit }: Props) {
   const [email, setEmail] = useState("");
@@ -15,12 +23,27 @@ export default function AuthForm({ mode, onSubmit }: Props) {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const isRegister = mode === "register";
+
+  const inputClass = (field: string) =>
+    `${INPUT_BASE} ${fieldErrors[field] ? INPUT_BAD : INPUT_OK}`;
+
+  // Xoá lỗi của riêng ô đang gõ, để người dùng thấy nó biến mất ngay khi sửa đúng.
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     setLoading(true);
     try {
       await onSubmit({
@@ -28,8 +51,13 @@ export default function AuthForm({ mode, onSubmit }: Props) {
         password,
         fullName: isRegister ? fullName.trim() || undefined : undefined,
       });
-    } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra");
+    } catch (err) {
+      if (err instanceof ApiError && Object.keys(err.fields).length > 0) {
+        // Backend đã chỉ rõ ô nào sai -> gắn vào từng ô, khỏi hiện dòng chung.
+        setFieldErrors(err.fields);
+      } else {
+        setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
+      }
     } finally {
       setLoading(false);
     }
@@ -129,10 +157,19 @@ export default function AuthForm({ mode, onSubmit }: Props) {
                 <input
                   type="text"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    clearFieldError("fullName");
+                  }}
                   placeholder="Nguyễn Văn A"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500"
+                  aria-invalid={!!fieldErrors.fullName}
+                  className={inputClass("fullName")}
                 />
+                {fieldErrors.fullName && (
+                  <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                    {fieldErrors.fullName}
+                  </p>
+                )}
               </div>
             )}
 
@@ -143,11 +180,20 @@ export default function AuthForm({ mode, onSubmit }: Props) {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearFieldError("email");
+                }}
                 required
                 placeholder="email@example.com"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500"
+                aria-invalid={!!fieldErrors.email}
+                className={inputClass("email")}
               />
+              {fieldErrors.email && (
+                <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
             <div className="mb-4">
@@ -157,12 +203,21 @@ export default function AuthForm({ mode, onSubmit }: Props) {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearFieldError("password");
+                }}
                 required
                 minLength={6}
                 placeholder={isRegister ? "Tối thiểu 6 ký tự" : "••••••"}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500"
+                aria-invalid={!!fieldErrors.password}
+                className={inputClass("password")}
               />
+              {fieldErrors.password && (
+                <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
             {error && (

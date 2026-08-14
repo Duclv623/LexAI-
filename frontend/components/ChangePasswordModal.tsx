@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Lock, X } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
+import { clearToken } from "@/lib/auth";
+
+const INPUT_BASE =
+  "w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus:ring-4 dark:bg-slate-800 dark:text-slate-100";
+const INPUT_OK =
+  "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/10 dark:border-slate-700";
+const INPUT_BAD =
+  "border-red-400 focus:border-red-500 focus:ring-red-500/10 dark:border-red-700";
 
 export default function ChangePasswordModal({
   open,
@@ -11,20 +20,35 @@ export default function ChangePasswordModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
 
   if (!open) return null;
+
+  const inputClass = (field: string) =>
+    `${INPUT_BASE} ${fieldErrors[field] ? INPUT_BAD : INPUT_OK}`;
+
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   function close() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
     setError(null);
+    setFieldErrors({});
     setSuccess(false);
     onClose();
   }
@@ -32,17 +56,17 @@ export default function ChangePasswordModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
-    if (newPassword.length < 6) {
-      setError("Mật khẩu mới tối thiểu 6 ký tự");
-      return;
-    }
+    // Kiểm tại chỗ những thứ đáng phản hồi ngay, khỏi tốn một vòng gọi API.
+    // Độ dài mật khẩu thì để backend quyết (@Size trong ChangePasswordRequestDTO)
+    // cho khỏi có hai nguồn sự thật lệch nhau.
     if (newPassword !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp");
+      setFieldErrors({ confirmPassword: "Mật khẩu xác nhận không khớp" });
       return;
     }
     if (currentPassword === newPassword) {
-      setError("Mật khẩu mới phải khác mật khẩu hiện tại");
+      setFieldErrors({ newPassword: "Mật khẩu mới phải khác mật khẩu hiện tại" });
       return;
     }
 
@@ -50,9 +74,18 @@ export default function ChangePasswordModal({
     try {
       await api.changePassword(currentPassword, newPassword);
       setSuccess(true);
-      setTimeout(close, 1500);
-    } catch (e: any) {
-      setError(e.message || "Có lỗi xảy ra");
+      // Backend đã thu hồi token, phiên hiện tại chết rồi. Đưa thẳng về trang đăng nhập
+      // thay vì để người dùng bấm tiếp rồi mới bị đá ra giữa chừng.
+      setTimeout(() => {
+        clearToken();
+        router.push("/login");
+      }, 2000);
+    } catch (e) {
+      if (e instanceof ApiError && Object.keys(e.fields).length > 0) {
+        setFieldErrors(e.fields);
+      } else {
+        setError(e instanceof Error ? e.message : "Có lỗi xảy ra");
+      }
     } finally {
       setLoading(false);
     }
@@ -84,14 +117,15 @@ export default function ChangePasswordModal({
               Đổi mật khẩu
             </h2>
             <p className="text-xs text-slate-500">
-              Mật khẩu mới tối thiểu 6 ký tự
+              Mật khẩu mới tối thiểu 8 ký tự
             </p>
           </div>
         </div>
 
         {success ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-            Đổi mật khẩu thành công! Đang đóng...
+            Đổi mật khẩu thành công! Mọi phiên đăng nhập cũ đã bị thu hồi, đang đưa
+            bạn về trang đăng nhập...
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -102,11 +136,20 @@ export default function ChangePasswordModal({
               <input
                 type="password"
                 value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value);
+                  clearFieldError("currentPassword");
+                }}
                 required
                 autoFocus
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                aria-invalid={!!fieldErrors.currentPassword}
+                className={inputClass("currentPassword")}
               />
+              {fieldErrors.currentPassword && (
+                <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.currentPassword}
+                </p>
+              )}
             </div>
 
             <div className="mb-3">
@@ -116,12 +159,21 @@ export default function ChangePasswordModal({
               <input
                 type="password"
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  clearFieldError("newPassword");
+                }}
                 required
-                minLength={6}
-                placeholder="Tối thiểu 6 ký tự"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                minLength={8}
+                placeholder="Tối thiểu 8 ký tự"
+                aria-invalid={!!fieldErrors.newPassword}
+                className={inputClass("newPassword")}
               />
+              {fieldErrors.newPassword && (
+                <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.newPassword}
+                </p>
+              )}
             </div>
 
             <div className="mb-4">
@@ -131,10 +183,19 @@ export default function ChangePasswordModal({
               <input
                 type="password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  clearFieldError("confirmPassword");
+                }}
                 required
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                aria-invalid={!!fieldErrors.confirmPassword}
+                className={inputClass("confirmPassword")}
               />
+              {fieldErrors.confirmPassword && (
+                <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.confirmPassword}
+                </p>
+              )}
             </div>
 
             {error && (

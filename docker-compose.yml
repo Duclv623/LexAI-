@@ -66,6 +66,8 @@ services:
     restart: unless-stopped
     environment:
       AUTH_SERVER_PORT: 8081
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       AUTH_DB_URL: jdbc:postgresql://postgres:5432/chatbox_auth
       AUTH_DB_USERNAME: auth_service
       AUTH_DB_PASSWORD: auth_service
@@ -78,6 +80,8 @@ services:
     depends_on:
       database-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8081/api/auth/health"]
       interval: 10s

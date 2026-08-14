@@ -12,6 +12,24 @@ import { getToken, clearToken } from "./auth";
 // Gateway lo verify token, rate limit và CORS trước khi chuyển tiếp.
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
+/**
+ * Lỗi từ API, mang theo status và map fields do backend trả về.
+ *
+ * fields chỉ có ở lỗi validate, dạng {"email": "Email không đúng định dạng"} —
+ * nhờ nó form biết ô nào sai để tô đỏ, thay vì chỉ hiện một dòng chung chung.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly fields: Record<string, string>;
+
+  constructor(status: number, message: string, fields?: Record<string, string>) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.fields = fields ?? {};
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -22,21 +40,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
 
-  if (res.status === 401) {
+  // Chỉ đá về /login khi request CÓ mang token mà vẫn bị từ chối — đó mới là phiên hết
+  // hạn hoặc token bị thu hồi. Không có token thì 401 nghĩa là đăng nhập sai, phải để
+  // form tự hiện thông báo; tải lại trang ở đây sẽ xoá sạch form và nuốt mất lỗi.
+  if (res.status === 401 && token) {
     clearToken();
     if (typeof window !== "undefined") window.location.href = "/login";
-    throw new Error("Phiên đăng nhập đã hết hạn");
+    throw new ApiError(401, "Phiên đăng nhập đã hết hạn");
   }
 
   if (!res.ok) {
     let msg = `API ${res.status}`;
+    let fields: Record<string, string> | undefined;
     try {
       const j = await res.json();
       msg = j.message || j.error || msg;
+      if (j.fields && typeof j.fields === "object") fields = j.fields;
     } catch {
-      // ignore
+      // thân rỗng hoặc không phải JSON
     }
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    throw new ApiError(res.status, typeof msg === "string" ? msg : JSON.stringify(msg), fields);
   }
 
   // DELETE trả 204 không có thân. res.json() trên thân rỗng sẽ ném lỗi.
@@ -165,6 +188,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
+
+  // Xoá token khỏi localStorage là chưa đủ: token vẫn hợp lệ tới khi hết hạn.
+  // Endpoint này xoá nó khỏi Redis nên gateway từ chối ngay lập tức.
+  logout: () =>
+    request<CustomResponse<void>>("/api/auth/logout", { method: "POST" }),
 
   // ----- Chat -----
   /**

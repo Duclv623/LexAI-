@@ -9,10 +9,10 @@ import lombok.Setter;
 @Setter
 public class LoginRequestDTO {
 
-    @Email
-    @NotBlank
+    @Email(message = "Email không đúng định dạng")
+    @NotBlank(message = "Vui lòng nhập email")
     private String email;
 
-    @NotBlank
+    @NotBlank(message = "Vui lòng nhập mật khẩu")
     private String password;
 }

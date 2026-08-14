@@ -78,6 +78,14 @@ public class AuthServiceImpl implements AuthService {
 
         account.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         accountRepository.save(account);
+
+        // kick every session, the old token must not survive a password change
+        jwtService.revoke(accountId);
+    }
+
+    @Override
+    public void logout(Long accountId) {
+        jwtService.revoke(accountId);
     }
 
     private AuthResponseDTO toAuthResponse(Account account) {

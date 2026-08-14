@@ -6,6 +6,12 @@ spring:
     # optional: -> thiếu file thì bỏ qua, không làm app chết.
     # Biến môi trường thật của máy vẫn được ưu tiên cao hơn file này.
     import: optional:file:.env[.properties]
+  data:
+    redis:
+      # Nơi lưu token hiện hành của từng tài khoản (key jwt:{accountId}).
+      # Gateway đọc chính key này để biết token đã bị thu hồi hay chưa.
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   datasource:
     # Database-per-service: auth-service chỉ có tài khoản vào chatbox_auth.
     # Postgres từ chối kết nối sang DB của service khác (xem docker/postgres-init).

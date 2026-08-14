@@ -10,10 +10,11 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.chatboxai.api_gateway.service.TokenValidationService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,7 +31,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final String USER_ROLE = "X-User-Role";
     private static final String USER_EMAIL = "X-User-Email";
 
-    private final JwtDecoder jwtDecoder;
+    private final TokenValidationService tokenValidationService;
 
     private final List<String> publicPaths = List.of(
             "/api/auth/login",
@@ -68,7 +69,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         Jwt jwt;
         try {
-            jwt = jwtDecoder.decode(token);
+            jwt = tokenValidationService.validate(token);
         } catch (JwtException e) {
             unauthorized(response, "Invalid token");
             return;

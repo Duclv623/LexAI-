@@ -6,5 +6,7 @@ public interface JwtService {
 
     String createToken(Account account);
 
+    void revoke(Long accountId);
+
     long getExpirationSeconds();
 }

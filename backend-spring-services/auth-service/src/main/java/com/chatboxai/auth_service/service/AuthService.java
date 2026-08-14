@@ -15,4 +15,6 @@ public interface AuthService {
     AccountResponseDTO me(Long accountId);
 
     void changePassword(Long accountId, ChangePasswordRequestDTO request);
+
+    void logout(Long accountId);
 }
