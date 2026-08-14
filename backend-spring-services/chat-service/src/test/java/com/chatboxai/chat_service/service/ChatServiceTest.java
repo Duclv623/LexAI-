@@ -3,6 +3,7 @@ package com.chatboxai.chat_service.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -15,8 +16,12 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.chatboxai.chat_service.dao.repository.ConversationMessageCount;
 import com.chatboxai.chat_service.dao.repository.ConversationRepository;
 import com.chatboxai.chat_service.dao.repository.MessageRepository;
 import com.chatboxai.chat_service.dto.request.CreateConversationRequestDTO;
@@ -175,18 +180,86 @@ class ChatServiceTest {
         order.verify(conversations).delete(conversation);
     }
 
+    private static ConversationMessageCount messageCount(Long conversationId, long total) {
+        return new ConversationMessageCount() {
+            @Override
+            public Long getConversationId() {
+                return conversationId;
+            }
+
+            @Override
+            public long getTotal() {
+                return total;
+            }
+        };
+    }
+
+    private void onePageOfConversations() {
+        when(conversations.findByUserId(eq(OWNER), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(conversation("Của tôi")), PageRequest.of(0, 20), 1));
+        when(messages.countByConversationIdIn(List.of(7L)))
+                .thenReturn(List.of(messageCount(7L, 3L)));
+    }
+
     @Test
     @DisplayName("Danh sách chỉ lấy hội thoại của chính user đó, kèm số tin nhắn")
     void listIsScopedToUser() {
-        when(conversations.findByUserIdOrderByUpdatedAtDesc(OWNER))
-                .thenReturn(List.of(conversation("Của tôi")));
-        when(messages.countByConversationId(7L)).thenReturn(3L);
+        onePageOfConversations();
 
-        var result = service.list(OWNER);
+        var result = service.list(OWNER, 0, 20);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).title()).isEqualTo("Của tôi");
-        assertThat(result.get(0).messageCount()).isEqualTo(3);
-        verify(conversations).findByUserIdOrderByUpdatedAtDesc(OWNER);
+        assertThat(result.conversations()).hasSize(1);
+        assertThat(result.conversations().get(0).title()).isEqualTo("Của tôi");
+        assertThat(result.conversations().get(0).messageCount()).isEqualTo(3);
+        verify(conversations).findByUserId(eq(OWNER), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("Trả kèm thông tin phân trang: tổng số bản ghi, trang hiện tại, cỡ trang")
+    void listReturnsPaginationInfo() {
+        onePageOfConversations();
+
+        var pagination = service.list(OWNER, 0, 20).pagination();
+
+        assertThat(pagination.totalElements()).isEqualTo(1);
+        assertThat(pagination.totalPages()).isEqualTo(1);
+        assertThat(pagination.currentPage()).isZero();
+        assertThat(pagination.pageSize()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("Đếm tin nhắn bằng MỘT truy vấn gộp, không phải mỗi hội thoại một truy vấn")
+    void messageCountUsesOneGroupedQuery() {
+        onePageOfConversations();
+
+        service.list(OWNER, 0, 20);
+
+        verify(messages).countByConversationIdIn(List.of(7L));
+        verify(messages, never()).countByConversationId(any());
+    }
+
+    @Test
+    @DisplayName("size quá lớn bị chặn ở mức trần, client không ép server trả về cả bảng")
+    void pageSizeIsClamped() {
+        when(conversations.findByUserId(eq(OWNER), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
+
+        service.list(OWNER, 0, 999_999);
+
+        var captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(conversations).findByUserId(eq(OWNER), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("Không có hội thoại nào -> không chạy truy vấn đếm nào cả")
+    void emptyPageSkipsTheCountQuery() {
+        when(conversations.findByUserId(eq(OWNER), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        var result = service.list(OWNER, 0, 20);
+
+        assertThat(result.conversations()).isEmpty();
+        verify(messages, never()).countByConversationIdIn(any());
     }
 }

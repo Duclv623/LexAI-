@@ -1,17 +1,23 @@
 package com.chatboxai.chat_service.service.impl;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.chatboxai.chat_service.dao.repository.ConversationMessageCount;
 import com.chatboxai.chat_service.dao.repository.ConversationRepository;
 import com.chatboxai.chat_service.dao.repository.MessageRepository;
 import com.chatboxai.chat_service.dto.request.CreateConversationRequestDTO;
 import com.chatboxai.chat_service.dto.response.ConversationDetailResponseDTO;
 import com.chatboxai.chat_service.dto.response.ConversationResponseDTO;
+import com.chatboxai.chat_service.dto.response.ListConversationResponseDTO;
 import com.chatboxai.chat_service.dto.response.MessageResponseDTO;
 import com.chatboxai.chat_service.entity.Conversation;
 import com.chatboxai.chat_service.entity.Message;
@@ -20,6 +26,7 @@ import com.chatboxai.chat_service.exception.ConversationNotFoundException;
 import com.chatboxai.chat_service.mapper.ConversationMapper;
 import com.chatboxai.chat_service.mapper.MessageMapper;
 import com.chatboxai.chat_service.service.ChatService;
+import com.chatboxai.chat_service.util.PageableUtils;
 import com.chatboxai.chat_service.util.ai.AiRagRequest;
 
 import lombok.RequiredArgsConstructor;
@@ -51,10 +58,28 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ConversationResponseDTO> list(String userId) {
-        return conversationRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
-                .map(c -> ConversationMapper.toResponse(c, messageRepository.countByConversationId(c.getId())))
+    public ListConversationResponseDTO list(String userId, int page, int size) {
+        Page<Conversation> found = conversationRepository.findByUserId(
+                userId, PageableUtils.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt")));
+
+        Map<Long, Long> counts = messageCounts(found.getContent());
+        List<ConversationResponseDTO> conversations = found.getContent().stream()
+                .map(c -> ConversationMapper.toResponse(c, counts.getOrDefault(c.getId(), 0L)))
                 .toList();
+
+        return new ListConversationResponseDTO(conversations, PageableUtils.toPagination(found));
+    }
+
+    // one query for the whole page, not one per conversation
+    private Map<Long, Long> messageCounts(List<Conversation> conversations) {
+        if (conversations.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = conversations.stream().map(Conversation::getId).toList();
+        return messageRepository.countByConversationIdIn(ids).stream()
+                .collect(Collectors.toMap(
+                        ConversationMessageCount::getConversationId,
+                        ConversationMessageCount::getTotal));
     }
 
     @Override

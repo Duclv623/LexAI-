@@ -1,6 +1,7 @@
 package com.chatboxai.chat_service.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,6 +25,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.chatboxai.chat_service.config.SecurityConfig;
+import com.chatboxai.chat_service.dto.response.ListConversationResponseDTO;
+import com.chatboxai.chat_service.dto.response.PaginationDTO;
 import com.chatboxai.chat_service.exception.ApiExceptionHandler;
 import com.chatboxai.chat_service.exception.ConversationNotFoundException;
 import com.chatboxai.chat_service.service.ChatService;
@@ -46,6 +49,10 @@ class ChatControllerTest {
     @MockitoBean
     private JwtDecoder jwtDecoder;
 
+    private static ListConversationResponseDTO emptyPage() {
+        return new ListConversationResponseDTO(List.of(), new PaginationDTO(0, 0, 0, 20));
+    }
+
     @Test
     @DisplayName("Không có token -> 401, không chạm tới service")
     void withoutTokenIsUnauthorized() throws Exception {
@@ -58,25 +65,48 @@ class ChatControllerTest {
     @Test
     @DisplayName("Có token -> service nhận đúng userId từ claim sub")
     void userIdComesFromSubjectClaim() throws Exception {
-        when(chatService.list("42")).thenReturn(List.of());
+        when(chatService.list(eq("42"), anyInt(), anyInt())).thenReturn(emptyPage());
 
         mvc.perform(get("/api/chat/conversations").with(jwt().jwt(j -> j.subject("42"))))
                 .andExpect(status().isOk());
 
-        verify(chatService).list("42");
+        verify(chatService).list(eq("42"), anyInt(), anyInt());
+    }
+
+    @Test
+    @DisplayName("Không truyền page/size -> dùng mặc định trang 0, cỡ 20")
+    void paginationDefaultsAreApplied() throws Exception {
+        when(chatService.list(eq("42"), anyInt(), anyInt())).thenReturn(emptyPage());
+
+        mvc.perform(get("/api/chat/conversations").with(jwt().jwt(j -> j.subject("42"))))
+                .andExpect(status().isOk());
+
+        verify(chatService).list("42", 0, 20);
+    }
+
+    @Test
+    @DisplayName("Truyền page/size -> chuyển đúng xuống service")
+    void paginationParamsArePassedThrough() throws Exception {
+        when(chatService.list(eq("42"), anyInt(), anyInt())).thenReturn(emptyPage());
+
+        mvc.perform(get("/api/chat/conversations?page=2&size=5")
+                        .with(jwt().jwt(j -> j.subject("42"))))
+                .andExpect(status().isOk());
+
+        verify(chatService).list("42", 2, 5);
     }
 
     @Test
     @DisplayName("CHỐNG GIẢ MẠO: header X-User-Id do client gửi bị bỏ qua, vẫn dùng sub của token")
     void spoofedHeaderIsIgnored() throws Exception {
-        when(chatService.list("42")).thenReturn(List.of());
+        when(chatService.list(eq("42"), anyInt(), anyInt())).thenReturn(emptyPage());
 
         mvc.perform(get("/api/chat/conversations")
                         .header("X-User-Id", "999")
                         .with(jwt().jwt(j -> j.subject("42"))))
                 .andExpect(status().isOk());
 
-        verify(chatService).list("42");
+        verify(chatService).list(eq("42"), anyInt(), anyInt());
     }
 
     @Test

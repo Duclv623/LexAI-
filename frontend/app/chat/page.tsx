@@ -57,8 +57,8 @@ export default function ChatPage() {
 
   const refreshSessions = useCallback(async () => {
     try {
-      const list = await api.listSessions();
-      setSessions(list);
+      const { sessions } = await api.listSessions();
+      setSessions(sessions);
     } catch (e) {
       console.error(e);
     }

@@ -5,6 +5,7 @@ import java.util.List;
 import com.chatboxai.chat_service.dto.request.CreateConversationRequestDTO;
 import com.chatboxai.chat_service.dto.response.ConversationDetailResponseDTO;
 import com.chatboxai.chat_service.dto.response.ConversationResponseDTO;
+import com.chatboxai.chat_service.dto.response.ListConversationResponseDTO;
 import com.chatboxai.chat_service.entity.Message;
 import com.chatboxai.chat_service.util.ai.AiRagRequest;
 
@@ -16,7 +17,7 @@ public interface ChatService {
 
     ConversationResponseDTO create(String userId, CreateConversationRequestDTO request);
 
-    List<ConversationResponseDTO> list(String userId);
+    ListConversationResponseDTO list(String userId, int page, int size);
 
     ConversationDetailResponseDTO detail(String userId, Long conversationId);
 

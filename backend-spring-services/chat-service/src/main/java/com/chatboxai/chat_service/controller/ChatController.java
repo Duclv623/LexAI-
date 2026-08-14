@@ -1,7 +1,5 @@
 package com.chatboxai.chat_service.controller;
 
-import java.util.List;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -11,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,6 +18,7 @@ import com.chatboxai.chat_service.dto.request.PostMessageRequestDTO;
 import com.chatboxai.chat_service.dto.response.ConversationDetailResponseDTO;
 import com.chatboxai.chat_service.dto.response.ConversationResponseDTO;
 import com.chatboxai.chat_service.dto.response.CustomResponse;
+import com.chatboxai.chat_service.dto.response.ListConversationResponseDTO;
 import com.chatboxai.chat_service.dto.response.TurnResponseDTO;
 import com.chatboxai.chat_service.service.ChatService;
 import com.chatboxai.chat_service.service.ChatTurnService;
@@ -43,8 +43,13 @@ public class ChatController {
     }
 
     @GetMapping
-    public CustomResponse<List<ConversationResponseDTO>> list(@AuthenticationPrincipal Jwt jwt) {
-        return new CustomResponse<>(true, chatService.list(userId(jwt)), "Lấy danh sách hội thoại thành công");
+    public CustomResponse<ListConversationResponseDTO> list(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return new CustomResponse<>(true,
+                chatService.list(userId(jwt), page, size),
+                "Lấy danh sách hội thoại thành công");
     }
 
     @GetMapping("/{id}")

@@ -101,6 +101,18 @@ interface ServerTurn {
   retrievedChunks?: unknown;
 }
 
+export interface Pagination {
+  totalPages: number;
+  totalElements: number;
+  currentPage: number;
+  pageSize: number;
+}
+
+interface ServerConversationList {
+  conversations: ServerConversation[];
+  pagination: Pagination;
+}
+
 function toAuthResponse(res: SpringAuthResponse): AuthResponse {
   return { token: res.accessToken, user: res.account };
 }
@@ -187,8 +199,13 @@ export const api = {
   },
 
   // ----- Sessions (bên server gọi là conversations) -----
-  listSessions: async () =>
-    (await requestData<ServerConversation[]>("/api/chat/conversations")).map(toSession),
+  // Trả kèm pagination để UI biết còn trang sau hay không (totalPages > currentPage + 1).
+  listSessions: async (page = 0, size = 20) => {
+    const res = await requestData<ServerConversationList>(
+      `/api/chat/conversations?page=${page}&size=${size}`
+    );
+    return { sessions: res.conversations.map(toSession), pagination: res.pagination };
+  },
 
   getSession: async (id: number) =>
     toSession(await requestData<ServerConversation>(`/api/chat/conversations/${id}`)),
