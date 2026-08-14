@@ -18,10 +18,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/chat/health", "/actuator/health").permitAll()
-                        // Zero-trust: dù đứng sau gateway, chat-service vẫn tự bắt buộc token hợp lệ.
                         .anyRequest().authenticated()
                 )
-                // Spring tự verify RS256 qua jwk-set-uri (khai báo trong application.yaml).
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
 
         return http.build();

@@ -1,0 +1,28 @@
+package com.chatboxai.chat_service.service;
+
+import java.util.List;
+
+import com.chatboxai.chat_service.dto.request.CreateConversationRequestDTO;
+import com.chatboxai.chat_service.dto.response.ConversationDetailResponseDTO;
+import com.chatboxai.chat_service.dto.response.ConversationResponseDTO;
+import com.chatboxai.chat_service.entity.Message;
+import com.chatboxai.chat_service.util.ai.AiRagRequest;
+
+public interface ChatService {
+
+    // a turn is split in two transactions so the ai-service call is not wrapped in one
+    record PreparedTurn(Message userMessage, List<AiRagRequest.AiHistoryItem> history) {
+    }
+
+    ConversationResponseDTO create(String userId, CreateConversationRequestDTO request);
+
+    List<ConversationResponseDTO> list(String userId);
+
+    ConversationDetailResponseDTO detail(String userId, Long conversationId);
+
+    void delete(String userId, Long conversationId);
+
+    PreparedTurn beginTurn(String userId, Long conversationId, String question);
+
+    Message completeTurn(Long conversationId, String answer, String citationsJson, Integer latencyMs);
+}

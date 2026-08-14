@@ -16,22 +16,14 @@ import org.springframework.security.oauth2.jwt.JwtException;
 
 import com.nimbusds.jose.jwk.RSAKey;
 
-/**
- * Khoá lại hành vi "token sống sót qua restart".
- *
- * Mỗi `new JwtKeyConfig(...)` ở đây đóng vai MỘT LẦN KHỞI ĐỘNG auth-service:
- * hai instance = restart một lần, không cần chạy thật hay cần Postgres.
- */
 class JwtKeyConfigTest {
 
-    /** Sinh private key RSA-2048 và mã hoá y hệt định dạng lưu trong .env (PKCS#8 DER -> base64). */
     private static String privateKeyBase64() throws Exception {
         var generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         return Base64.getEncoder().encodeToString(generator.generateKeyPair().getPrivate().getEncoded());
     }
 
-    /** Ký một token đúng cách JwtService làm: RS256 + gắn kid vào header. */
     private static String sign(JwtKeyConfig boot, RSAKey key) {
         Instant now = Instant.now();
         return boot.jwtEncoder(boot.jwkSource(key))
@@ -54,7 +46,6 @@ class JwtKeyConfigTest {
         String kidLanChay1 = new JwtKeyConfig(key).rsaKey().getKeyID();
         String kidLanChay2 = new JwtKeyConfig(key).rsaKey().getKeyID();
 
-        // kid tính từ thumbprint của public key nên bám theo khoá, không phải theo lần chạy.
         assertThat(kidLanChay2).isEqualTo(kidLanChay1);
     }
 

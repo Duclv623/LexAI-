@@ -1,7 +1,5 @@
 package com.chatboxai.api_gateway.filter;
 
-import com.chatboxai.api_gateway.config.RateLimitProperties;
-
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
@@ -16,25 +14,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.chatboxai.api_gateway.configs.RateLimitProperties;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 10) // chặn flood trước, rồi mới tới JwtAuthFilter
+@Order(Ordered.HIGHEST_PRECEDENCE + 10)
+@RequiredArgsConstructor
 public class RedisRateLimitFilter extends OncePerRequestFilter {
 
-    /**
-     * INCR và EXPIRE phải nằm trong MỘT lệnh atomic.
-     *
-     * Nếu tách thành 2 round trip, chỉ request nào thấy count == 1 mới set TTL.
-     * Tiến trình chết (Ctrl+C khi dev) đúng khoảng giữa 2 lệnh → key sống với TTL = -1:
-     * count không bao giờ quay lại 1 nên không request nào set TTL nữa, và IP đó
-     * bị 429 vĩnh viễn cho tới khi DEL thủ công trong redis-cli.
-     *
-     * Lua chạy nguyên khối trong Redis nên không thể đứt giữa chừng — và tiết kiệm 1 round trip.
-     */
+    // INCR and EXPIRE must be atomic, split them and a crash in between leaves a key with no ttl
     private static final RedisScript<Long> INCR_WITH_TTL = new DefaultRedisScript<>("""
             local c = redis.call('INCR', KEYS[1])
             if c == 1 then
@@ -45,11 +38,6 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
 
     private final StringRedisTemplate redisTemplate;
     private final RateLimitProperties properties;
-
-    public RedisRateLimitFilter(StringRedisTemplate redisTemplate, RateLimitProperties properties) {
-        this.redisTemplate = redisTemplate;
-        this.properties = properties;
-    }
 
     @Override
     protected void doFilterInternal(
@@ -75,9 +63,7 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
                     String.valueOf(rule.getWindowSeconds())
             );
         } catch (DataAccessException e) {
-            // Redis chết KHÔNG được phép làm sập gateway: rate limit là lớp bảo vệ,
-            // không phải nghiệp vụ. Chọn fail-open một cách CÓ Ý THỨC + log cảnh báo,
-            // thay vì để exception bay ra ngoài thành 500 khó hiểu cho mọi route.
+            // fail open on purpose, rate limit is a guard and must not take the gateway down
             logger.warn("Redis không khả dụng — tạm bỏ qua rate limit cho " + path, e);
             filterChain.doFilter(request, response);
             return;
@@ -94,11 +80,7 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Khớp prefix DÀI NHẤT, không phải rule đầu tiên trong file config.
-     * Nhờ vậy có thể đặt rule cụ thể (/api/auth/login) cạnh rule chung (/api/auth/)
-     * mà kết quả không phụ thuộc thứ tự khai báo trong YAML.
-     */
+    // longest prefix wins, so the result does not depend on rule order in the yaml
     private RateLimitProperties.Rule resolveRule(String path) {
         return properties.getRules().stream()
                 .filter(rule -> path.startsWith(rule.getPathPrefix()))
@@ -106,24 +88,12 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
                 .orElse(null);
     }
 
-    /**
-     * Health check bị monitor / docker healthcheck poll liên tục (12 req/phút là bình thường).
-     * Không cho nó ăn budget chung, nếu không chính health probe sẽ tự đẩy user vào 429.
-     */
+    // health probes poll constantly, they must not eat the shared budget
     private boolean isHealthCheck(String path) {
         return path.endsWith("/health");
     }
 
-    /**
-     * Gateway này CHÍNH LÀ edge — không có reverse proxy nào đứng trước, nên
-     * X-Forwarded-For là dữ liệu client tự khai và không được tin: đổi header là
-     * đổi bucket (né sạch limit), hoặc điền IP người khác để khoá họ khỏi login.
-     *
-     * Khi nào thật sự có LB/nginx phía trước thì ĐỪNG tự parse header ở đây. Bật:
-     *   server.forward-headers-strategy: native
-     *   server.tomcat.remoteip.internal-proxies: <CIDR của LB>
-     * Tomcat sẽ lo phần đó và getRemoteAddr() dưới đây trả về IP thật của client.
-     */
+    // this gateway is the edge, X-Forwarded-For is client supplied and must not be trusted
     private String clientIp(HttpServletRequest request) {
         return request.getRemoteAddr();
     }

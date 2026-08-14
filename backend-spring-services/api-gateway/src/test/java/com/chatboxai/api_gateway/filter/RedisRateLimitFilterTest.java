@@ -1,6 +1,6 @@
 package com.chatboxai.api_gateway.filter;
 
-import com.chatboxai.api_gateway.config.RateLimitProperties;
+import com.chatboxai.api_gateway.configs.RateLimitProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,16 +23,12 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-/**
- * Khoá lại hành vi rate limit. Redis được mock nên test chạy không cần docker.
- */
-@SuppressWarnings("unchecked") // matcher của Mockito trả RedisScript thô
+@SuppressWarnings("unchecked")
 class RedisRateLimitFilterTest {
 
     private final StringRedisTemplate redis = mock(StringRedisTemplate.class);
     private final RedisRateLimitFilter filter = new RedisRateLimitFilter(redis, properties());
 
-    /** Đúng bộ rule trong application.yaml. */
     private static RateLimitProperties properties() {
         var props = new RateLimitProperties();
         props.setRules(List.of(

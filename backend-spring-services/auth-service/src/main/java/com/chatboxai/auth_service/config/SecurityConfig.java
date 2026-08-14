@@ -19,7 +19,6 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public: lấy token + phát public key + health
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/register",
@@ -27,10 +26,8 @@ public class SecurityConfig {
                                 "/api/auth/health",
                                 "/actuator/health"
                         ).permitAll()
-                        // Còn lại (vd /api/auth/me) phải có token hợp lệ
                         .anyRequest().authenticated()
                 )
-                // Zero-trust: auth-service tự verify token bằng public key nội bộ (JwtDecoder bean).
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
 
         return http.build();

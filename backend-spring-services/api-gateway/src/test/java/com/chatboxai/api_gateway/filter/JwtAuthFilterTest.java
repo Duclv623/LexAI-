@@ -16,10 +16,6 @@ import org.springframework.security.oauth2.jwt.JwtException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-/**
- * Khoá lại hành vi gác cổng của JwtAuthFilter.
- * Không cần auth-service hay JWKS thật — JwtDecoder được mock.
- */
 class JwtAuthFilterTest {
 
     private final JwtDecoder jwtDecoder = mock(JwtDecoder.class);
@@ -44,7 +40,7 @@ class JwtAuthFilterTest {
         filter.doFilter(request, response, chain);
 
         assertThat(response.getStatus()).isEqualTo(401);
-        // chain.getRequest() == null nghĩa là filter đã chặn, không forward xuống downstream.
+        // a null chain.getRequest() means the filter blocked and did not forward
         assertThat(chain.getRequest()).isNull();
     }
 
