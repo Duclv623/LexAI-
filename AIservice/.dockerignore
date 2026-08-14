@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+test_rag.py
+data/**/*.doc
+data/**/*.docx
+data/docx_input/
+data/docx_processed/
+*.log
+.git
+.gitignore

@@ -3,30 +3,30 @@ spring:
     name: api-gateway
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   cloud:
     gateway:
       server:
         webmvc:
           routes:
             - id: auth-service
-              uri: http://localhost:8081
+              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
               predicates:
                 - Path=/api/auth/**
             - id: chat-service
-              uri: http://localhost:8082
+              uri: ${CHAT_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/chat/**
             - id: ai-service
-              uri: http://localhost:8000
+              uri: ${AI_SERVICE_URL:http://localhost:8000}
               predicates:
                 - Path=/api/ai/**
               filters:
                 - StripPrefix=2
 
 server:
-  port: 8080
+  port: ${GATEWAY_SERVER_PORT:8080}
 
 logging:
   pattern:
@@ -40,8 +40,8 @@ app:
     allowed-origins: ${GATEWAY_CORS_ORIGINS:http://localhost:3000}
   jwt:
     # Gateway verify token bằng public key lấy từ JWKS của auth-service.
-    jwk-set-uri: http://localhost:8081/.well-known/jwks.json
-    issuer: http://localhost:8081
+    jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: ${AUTH_JWT_ISSUER:http://localhost:8081}
   rate-limit:
     # Filter khớp prefix DÀI NHẤT nên thứ tự khai báo ở đây không ảnh hưởng kết quả.
     # Mọi path kết thúc bằng /health đều được miễn rate limit (xem RedisRateLimitFilter).

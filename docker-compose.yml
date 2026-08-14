@@ -2,8 +2,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: chatbox-redis
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    expose:
+      - "6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -16,12 +17,13 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: chatbox-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: chatbox
       POSTGRES_PASSWORD: chatbox
       POSTGRES_DB: chatbox
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       # Tạo DB + user riêng cho từng service. Chỉ chạy khi postgres-data còn trống;
@@ -33,6 +35,171 @@ services:
       timeout: 5s
       retries: 5
 
+  database-init:
+    image: postgres:16-alpine
+    container_name: chatbox-database-init
+    restart: "no"
+    environment:
+      PGPASSWORD: chatbox
+    volumes:
+      - ./docker/postgres-init/01-service-databases.sql:/scripts/01-service-databases.sql:ro
+    command:
+      - psql
+      - -h
+      - postgres
+      - -U
+      - chatbox
+      - -d
+      - chatbox
+      - -v
+      - ON_ERROR_STOP=1
+      - -f
+      - /scripts/01-service-databases.sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  auth-service:
+    build:
+      context: ./backend-spring-services/auth-service
+    container_name: chatbox-auth-service
+    restart: unless-stopped
+    environment:
+      AUTH_SERVER_PORT: 8081
+      AUTH_DB_URL: jdbc:postgresql://postgres:5432/chatbox_auth
+      AUTH_DB_USERNAME: auth_service
+      AUTH_DB_PASSWORD: auth_service
+      AUTH_JPA_DDL_AUTO: update
+      AUTH_JWT_ISSUER: http://auth-service:8081
+      AUTH_JWT_EXPIRATION_SECONDS: 86400
+      AUTH_JWT_PRIVATE_KEY: ${AUTH_JWT_PRIVATE_KEY:-}
+    expose:
+      - "8081"
+    depends_on:
+      database-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8081/api/auth/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  ai-service:
+    build:
+      context: ./AIservice
+    container_name: chatbox-ai-service
+    restart: unless-stopped
+    env_file:
+      - path: ./AIservice/.env
+        required: false
+    environment:
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-gemini-2.5-flash}
+      JWKS_URL: http://auth-service:8081/.well-known/jwks.json
+      JWT_ISSUER: http://auth-service:8081
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-0}
+      HF_HOME: /home/appuser/.cache/huggingface
+    expose:
+      - "8000"
+    volumes:
+      - hf-cache:/home/appuser/.cache/huggingface
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 10m
+
+  chat-service:
+    build:
+      context: ./backend-spring-services/chat-service
+    container_name: chatbox-chat-service
+    restart: unless-stopped
+    environment:
+      CHAT_SERVER_PORT: 8082
+      CHAT_DB_URL: jdbc:postgresql://postgres:5432/chatbox_chat
+      CHAT_DB_USERNAME: chat_service
+      CHAT_DB_PASSWORD: chat_service
+      CHAT_JPA_DDL_AUTO: update
+      CHAT_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      CHAT_AI_BASE_URL: http://ai-service:8000
+      CHAT_AI_TIMEOUT_SECONDS: 90
+    expose:
+      - "8082"
+    depends_on:
+      database-init:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8082/api/chat/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api-gateway:
+    build:
+      context: ./backend-spring-services/api-gateway
+    container_name: chatbox-api-gateway
+    restart: unless-stopped
+    environment:
+      GATEWAY_SERVER_PORT: 8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_SERVICE_URL: http://auth-service:8081
+      CHAT_SERVICE_URL: http://chat-service:8082
+      AI_SERVICE_URL: http://ai-service:8000
+      AUTH_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      AUTH_JWT_ISSUER: http://auth-service:8081
+      GATEWAY_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+    container_name: chatbox-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
 volumes:
   redis-data:
   postgres-data:
+  hf-cache:

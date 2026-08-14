@@ -55,10 +55,10 @@ Browser/API client -> api-gateway :8080
 
 ### PostgreSQL va Redis
 
-Chay database/cache:
+Chi chay database/cache khi phat trien service truc tiep tren may:
 
 ```bash
-docker compose up -d
+docker compose up -d postgres redis database-init
 ```
 
 Mac dinh `docker-compose.yml` tao:
@@ -115,36 +115,58 @@ Khong commit API key that len repository.
 
 ## Cai dat va chay du an
 
-### 1. Chay PostgreSQL va Redis
+### 1. Chay toan bo he thong bang Docker Compose
 
 ```bash
-docker compose up -d
+copy AIservice\.env.example AIservice\.env
+# Dien GOOGLE_API_KEY trong AIservice/.env, sau do:
+docker compose up -d --build
 ```
 
-### 2. Chay NestJS backend
-
-```bash
-cd backend
-npm install
-npx prisma migrate dev
-npm run start:dev
-```
-
-Backend mac dinh chay tai:
+Tren Linux/macOS, thay `copy` bang `cp`. Chi Frontend va API Gateway duoc
+publish ra may host:
 
 ```text
-http://localhost:3001
+Frontend:    http://localhost:3000
+API Gateway: http://localhost:8080
 ```
 
-### 3. Chay AIservice
+Auth Service, Chat Service, AI Service, PostgreSQL va Redis chi truy cap duoc
+trong mang Docker. Moi API tu ben ngoai bat buoc di qua API Gateway.
 
-Hien tai thu muc `AIservice` chua co `requirements.txt`, nen can cai cac package Python theo import thuc te cua service. Vi du:
+Du lieu vector da embedding trong `AIservice/chroma_db` duoc dong goi truc tiep
+vao AI image, khong xu ly lai tai lieu khi khoi dong. Lan dau container chay, model
+E5 dung de embedding cau hoi co the duoc tai vao volume `hf-cache`; cac lan sau se
+dung lai cache nay.
+
+```bash
+docker compose ps
+docker compose logs -f
+```
+
+Dung he thong ma giu nguyen database va cache:
+
+```bash
+docker compose down
+```
+
+### 2. Chay tung thanh phan de phat trien
+
+Neu khong dong goi cac service ung dung, chi khoi dong ha tang bang:
+
+```bash
+docker compose up -d postgres redis database-init
+```
+
+### 3. Chay AIservice truc tiep
+
+Thu muc `AIservice` da co `requirements.txt` de cai dat dong nhat:
 
 ```bash
 cd AIservice
 python -m venv .venv
 source .venv/bin/activate
-pip install fastapi uvicorn python-dotenv chromadb langchain langchain-community langchain-google-genai langchain-groq sentence-transformers
+pip install -r requirements.txt
 uvicorn api.main:app --reload --port 8000
 ```
 
@@ -154,7 +176,7 @@ Tren Windows PowerShell:
 cd AIservice
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install fastapi uvicorn python-dotenv chromadb langchain langchain-community langchain-google-genai langchain-groq sentence-transformers
+pip install -r requirements.txt
 uvicorn api.main:app --reload --port 8000
 ```
 
@@ -164,7 +186,7 @@ Kiem tra service:
 curl http://localhost:8000/health
 ```
 
-### 4. Chay frontend
+### 4. Chay frontend truc tiep
 
 ```bash
 cd frontend
