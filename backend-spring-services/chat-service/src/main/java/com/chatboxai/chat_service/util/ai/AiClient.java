@@ -25,10 +25,10 @@ public class AiClient {
 
         var factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(5));
-        // generous, an llm answer takes seconds, and the default is unlimited
+        // để rộng tay, llm trả lời mất vài giây, trong khi giá trị mặc định là chờ vô hạn
         factory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
 
-        // static builder on purpose, spring boot 4 no longer ships a RestClient.Builder bean here
+        // cố ý dùng builder tĩnh, từ spring boot 4 không còn bean RestClient.Builder ở đây nữa
         this.http = RestClient.builder()
                 .baseUrl(baseUrl)
                 .requestFactory(factory)

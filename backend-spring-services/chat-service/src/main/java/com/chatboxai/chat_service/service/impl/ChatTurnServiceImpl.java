@@ -14,7 +14,7 @@ import com.chatboxai.chat_service.util.ai.AiRagResponse;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.JsonNode;
 
-// deliberately not @Transactional, the ai-service call sits between two short transactions
+// cố ý không đánh dấu @Transactional, lời gọi ai-service nằm giữa hai giao dịch ngắn
 @Service
 @RequiredArgsConstructor
 public class ChatTurnServiceImpl implements ChatTurnService {

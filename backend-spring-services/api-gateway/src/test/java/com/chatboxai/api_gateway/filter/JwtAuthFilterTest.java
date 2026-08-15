@@ -41,7 +41,7 @@ class JwtAuthFilterTest {
         filter.doFilter(request, response, chain);
 
         assertThat(response.getStatus()).isEqualTo(401);
-        // a null chain.getRequest() means the filter blocked and did not forward
+        // chain.getRequest() trả về null nghĩa là filter đã chặn, không chuyển tiếp request
         assertThat(chain.getRequest()).isNull();
     }
 
@@ -124,6 +124,6 @@ class JwtAuthFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        assertThat(response.getStatus()).isEqualTo(401); // fail-closed
+        assertThat(response.getStatus()).isEqualTo(401); // fail-closed: từ chối
     }
 }

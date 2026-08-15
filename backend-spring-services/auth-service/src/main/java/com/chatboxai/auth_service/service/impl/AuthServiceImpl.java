@@ -68,7 +68,7 @@ public class AuthServiceImpl implements AuthService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found"));
 
-        // require the current password even with a valid token, tokens can be stolen
+        // vẫn bắt nhập mật khẩu hiện tại dù đã có token hợp lệ, vì token có thể bị đánh cắp
         if (!passwordEncoder.matches(request.currentPassword(), account.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại không đúng");
         }
@@ -79,7 +79,7 @@ public class AuthServiceImpl implements AuthService {
         account.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         accountRepository.save(account);
 
-        // kick every session, the old token must not survive a password change
+        // đá mọi phiên đang mở, token cũ không được sống sót qua lần đổi mật khẩu
         jwtService.revoke(accountId);
     }
 

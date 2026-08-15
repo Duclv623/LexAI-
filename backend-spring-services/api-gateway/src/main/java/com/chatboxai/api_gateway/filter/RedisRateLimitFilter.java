@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RedisRateLimitFilter extends OncePerRequestFilter {
 
-    // INCR and EXPIRE must be atomic, split them and a crash in between leaves a key with no ttl
+    // INCR và EXPIRE phải nguyên tử, tách rời mà gặp sự cố ở giữa sẽ để lại key không có ttl
     private static final RedisScript<Long> INCR_WITH_TTL = new DefaultRedisScript<>("""
             local c = redis.call('INCR', KEYS[1])
             if c == 1 then
@@ -63,7 +63,7 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
                     String.valueOf(rule.getWindowSeconds())
             );
         } catch (DataAccessException e) {
-            // fail open on purpose, rate limit is a guard and must not take the gateway down
+            // fail open có chủ đích, rate limit chỉ là lớp bảo vệ, không được phép kéo sập cả gateway
             logger.warn("Redis không khả dụng — tạm bỏ qua rate limit cho " + path, e);
             filterChain.doFilter(request, response);
             return;
@@ -80,7 +80,7 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    // longest prefix wins, so the result does not depend on rule order in the yaml
+    // tiền tố dài nhất thắng, nhờ vậy kết quả không phụ thuộc thứ tự khai báo luật trong yaml
     private RateLimitProperties.Rule resolveRule(String path) {
         return properties.getRules().stream()
                 .filter(rule -> path.startsWith(rule.getPathPrefix()))
@@ -88,12 +88,12 @@ public class RedisRateLimitFilter extends OncePerRequestFilter {
                 .orElse(null);
     }
 
-    // health probes poll constantly, they must not eat the shared budget
+    // công cụ giám sát thăm dò health liên tục, không được để chúng ăn vào hạn mức chung
     private boolean isHealthCheck(String path) {
         return path.endsWith("/health");
     }
 
-    // this gateway is the edge, X-Forwarded-For is client supplied and must not be trusted
+    // gateway này đứng ở biên, X-Forwarded-For do client tự gửi lên nên không được tin
     private String clientIp(HttpServletRequest request) {
         return request.getRemoteAddr();
     }

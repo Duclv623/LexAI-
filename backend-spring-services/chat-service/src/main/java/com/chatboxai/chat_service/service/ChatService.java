@@ -11,7 +11,7 @@ import com.chatboxai.chat_service.util.ai.AiRagRequest;
 
 public interface ChatService {
 
-    // a turn is split in two transactions so the ai-service call is not wrapped in one
+    // một lượt hỏi đáp được chẻ làm hai giao dịch, để lời gọi ai-service không nằm trong giao dịch nào
     record PreparedTurn(Message userMessage, List<AiRagRequest.AiHistoryItem> history) {
     }
 

@@ -20,7 +20,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 @Service
 public class JwtServiceImpl implements JwtService {
 
-    // gateway reads the same key, keep the two in sync
+    // gateway đọc đúng key này, sửa một bên thì phải sửa bên kia
     public static final String TOKEN_KEY_PREFIX = "jwt:";
 
     private final JwtEncoder jwtEncoder;
@@ -48,9 +48,9 @@ public class JwtServiceImpl implements JwtService {
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
-                // jti keeps every token unique. iat/exp only have second precision and RS256 is
-                // deterministic, so two logins in the same second would otherwise sign the exact
-                // same string and the newer one could not replace the older one in redis
+                // jti giữ cho mỗi token là duy nhất. iat/exp chỉ chính xác tới giây, mà RS256 lại ký
+                // tất định, nên hai lần đăng nhập trong cùng một giây sẽ sinh ra chuỗi giống hệt
+                // nhau và token mới không thể thay thế token cũ trong redis
                 .id(UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiresAt(now.plus(expirationSeconds, ChronoUnit.SECONDS))
@@ -59,15 +59,15 @@ public class JwtServiceImpl implements JwtService {
                 .claim("role", account.getRole())
                 .build();
 
-        // kid lets the verifier pick the right public key from the jwks
+        // kid giúp bên kiểm tra chọn đúng public key trong jwks
         JwsHeader header = JwsHeader.with(() -> "RS256")
                 .keyId(rsaKey.getKeyID())
                 .build();
 
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
 
-        // one token per account: logging in elsewhere replaces this one and logs the old device out.
-        // ttl matches the token lifetime so the key cannot outlive what it authorises
+        // mỗi tài khoản chỉ một token: đăng nhập ở máy khác sẽ ghi đè và đăng xuất máy cũ.
+        // ttl đặt bằng đúng hạn token nên key không thể sống lâu hơn thứ mà nó cho phép
         redisTemplate.opsForValue().set(
                 TOKEN_KEY_PREFIX + account.getId(), token, Duration.ofSeconds(expirationSeconds));
 

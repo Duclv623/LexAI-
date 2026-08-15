@@ -22,10 +22,10 @@ public class RequestIdFilter extends OncePerRequestFilter {
 
     public static final String REQUEST_ID_HEADER = "X-Request-Id";
 
-    // must match %X{requestId} in logging.pattern.level
+    // phải trùng với %X{requestId} khai báo trong logging.pattern.level
     private static final String MDC_KEY = "requestId";
 
-    // reject anything else, a newline in a client value can forge a whole log line
+    // từ chối mọi giá trị khác, một ký tự xuống dòng do client gửi có thể giả mạo trọn một dòng log
     private static final Pattern SAFE_ID = Pattern.compile("[A-Za-z0-9-]{1,64}");
 
     @Override
@@ -49,7 +49,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
             logger.info("%s %s -> %d (%d ms)".formatted(
                     request.getMethod(), request.getRequestURI(), response.getStatus(), ms));
 
-            // required, tomcat reuses threads and MDC is thread bound
+            // bắt buộc, tomcat tái sử dụng thread mà MDC lại gắn theo thread
             MDC.clear();
         }
     }

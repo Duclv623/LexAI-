@@ -48,7 +48,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        // always strip identity headers the client sent itself
+        // luôn xoá các header danh tính do chính client tự gửi lên
         Map<String, String> identity = new HashMap<>();
         identity.put(USER_ID, null);
         identity.put(USER_ROLE, null);

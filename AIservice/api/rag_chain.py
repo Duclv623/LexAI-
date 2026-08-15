@@ -269,7 +269,7 @@ def run_rag(
             "retrieved_chunks": _build_retrieved_chunks(docs),
         }
 
-    # 4. Parse JSON output
+    # 4. Bóc tách kết quả JSON
     parsed = _safe_parse_json(_coerce_to_text(response.content))
 
     answer = parsed.get("content", "")

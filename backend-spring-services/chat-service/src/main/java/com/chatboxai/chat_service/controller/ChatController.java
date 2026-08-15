@@ -64,20 +64,20 @@ public class ChatController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
             @Valid @RequestBody PostMessageRequestDTO request) {
-        // forward the raw token so ai-service can verify it itself
+        // chuyển tiếp nguyên vẹn token để ai-service tự kiểm tra lấy
         return new CustomResponse<>(true,
                 chatTurnService.send(userId(jwt), jwt.getTokenValue(), id, request),
                 "Gửi tin nhắn thành công");
     }
 
-    // 204 has no body by definition, so this one stays unwrapped
+    // 204 theo định nghĩa là không có body, nên riêng endpoint này không bọc response
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         chatService.delete(userId(jwt), id);
     }
 
-    // identity comes from the verified token, never from the X-User-Id header
+    // danh tính lấy từ token đã xác thực, không bao giờ lấy từ header X-User-Id
     private static String userId(Jwt jwt) {
         return jwt.getSubject();
     }

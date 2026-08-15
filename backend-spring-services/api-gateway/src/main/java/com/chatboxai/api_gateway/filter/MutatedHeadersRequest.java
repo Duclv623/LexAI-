@@ -10,7 +10,7 @@ import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 
-// null value means the header is removed, non null means it overrides what the client sent
+// giá trị null = xoá header đi, khác null = ghi đè lên giá trị client gửi lên
 class MutatedHeadersRequest extends HttpServletRequestWrapper {
 
     private final Map<String, String> overrides;

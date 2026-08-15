@@ -55,7 +55,7 @@ public class Conversation {
         updatedAt = Instant.now();
     }
 
-    // must be called by hand, inserting a Message does not make this entity dirty
+    // phải gọi bằng tay, vì việc chèn một Message không làm entity này bị đánh dấu là đã thay đổi
     public void touch() {
         this.updatedAt = Instant.now();
     }

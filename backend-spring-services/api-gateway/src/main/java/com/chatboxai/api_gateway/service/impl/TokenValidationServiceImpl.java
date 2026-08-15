@@ -19,7 +19,7 @@ public class TokenValidationServiceImpl implements TokenValidationService {
 
     private static final Logger log = LoggerFactory.getLogger(TokenValidationServiceImpl.class);
 
-    // auth-service writes this key, see JwtServiceImpl.TOKEN_KEY_PREFIX
+    // auth-service là bên ghi key này, xem JwtServiceImpl.TOKEN_KEY_PREFIX
     private static final String TOKEN_KEY_PREFIX = "jwt:";
 
     private final JwtDecoder jwtDecoder;
@@ -27,10 +27,10 @@ public class TokenValidationServiceImpl implements TokenValidationService {
 
     @Override
     public Jwt validate(String token) {
-        // step 1: signature, expiry and issuer, verified locally with the public key from the jwks
+        // bước 1: chữ ký, hạn dùng và issuer, kiểm tra tại chỗ bằng public key lấy từ jwks
         Jwt jwt = jwtDecoder.decode(token);
 
-        // step 2: is this still the token auth-service handed out for that account
+        // bước 2: đây có còn là token mà auth-service đã cấp cho tài khoản đó không
         String current = currentToken(jwt.getSubject());
         if (!token.equals(current)) {
             throw new JwtException("Token đã bị thu hồi");
@@ -43,8 +43,8 @@ public class TokenValidationServiceImpl implements TokenValidationService {
         try {
             return redisTemplate.opsForValue().get(TOKEN_KEY_PREFIX + accountId);
         } catch (DataAccessException e) {
-            // fail CLOSED, unlike the rate limit filter. letting requests through when the
-            // revocation list is unreachable would make every revoked token work again
+            // fail CLOSED, ngược với rate limit filter. cho request đi qua trong lúc không đọc được
+            // danh sách thu hồi sẽ khiến mọi token đã bị thu hồi hoạt động trở lại
             log.error("Redis không khả dụng — từ chối mọi token cho tới khi khôi phục", e);
             throw new JwtException("Không kiểm tra được trạng thái token", e);
         }

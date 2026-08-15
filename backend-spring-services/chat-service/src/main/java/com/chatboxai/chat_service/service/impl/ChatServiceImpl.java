@@ -70,7 +70,7 @@ public class ChatServiceImpl implements ChatService {
         return new ListConversationResponseDTO(conversations, PageableUtils.toPagination(found));
     }
 
-    // one query for the whole page, not one per conversation
+    // một truy vấn cho cả trang, không phải mỗi hội thoại một truy vấn
     private Map<Long, Long> messageCounts(List<Conversation> conversations) {
         if (conversations.isEmpty()) {
             return Map.of();
@@ -97,7 +97,7 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public void delete(String userId, Long conversationId) {
         Conversation conversation = requireOwned(userId, conversationId);
-        // delete children first, there is no @ManyToOne so jpa will not cascade
+        // xoá bản ghi con trước, không có @ManyToOne nên jpa sẽ không tự cascade
         messageRepository.deleteByConversationId(conversation.getId());
         conversationRepository.delete(conversation);
     }
@@ -107,7 +107,7 @@ public class ChatServiceImpl implements ChatService {
     public PreparedTurn beginTurn(String userId, Long conversationId, String question) {
         Conversation conversation = requireOwned(userId, conversationId);
 
-        // collect history before saving the new question, otherwise it appears twice in the prompt
+        // thu thập lịch sử trước khi lưu câu hỏi mới, nếu không câu hỏi sẽ xuất hiện hai lần trong prompt
         List<Message> previous = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
         List<AiRagRequest.AiHistoryItem> history = previous.stream()
                 .skip(Math.max(0, previous.size() - HISTORY_LIMIT))
@@ -143,7 +143,7 @@ public class ChatServiceImpl implements ChatService {
         return saved;
     }
 
-    // the only way to load a conversation, ownership check is baked into the query
+    // lối duy nhất để nạp một hội thoại, việc kiểm tra quyền sở hữu đã nằm sẵn trong truy vấn
     private Conversation requireOwned(String userId, Long conversationId) {
         return conversationRepository.findByIdAndUserId(conversationId, userId)
                 .orElseThrow(() -> new ConversationNotFoundException(conversationId));

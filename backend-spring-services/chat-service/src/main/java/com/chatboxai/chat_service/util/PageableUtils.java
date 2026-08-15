@@ -14,7 +14,7 @@ public class PageableUtils {
     private static final int MAX_SIZE = 100;
     private static final int DEFAULT_SIZE = 20;
 
-    // clamp the page size, size comes from the query string and a client could ask for millions
+    // chặn trần kích thước trang, size đến từ query string nên client có thể xin tới hàng triệu
     public static Pageable of(int page, int size, Sort sort) {
         int safePage = Math.max(page, 0);
         int safeSize = size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);

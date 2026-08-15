@@ -30,7 +30,7 @@ public class Message {
     @Column(nullable = false, name = "conversation_id")
     private Long conversationId;
 
-    // STRING not ORDINAL, ordinal stores positions and breaks when the enum changes
+    // dùng STRING chứ không phải ORDINAL, ordinal lưu theo vị trí nên hỏng khi enum thay đổi
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

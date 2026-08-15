@@ -25,7 +25,7 @@ public class ApiExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.NOT_FOUND.value(), e.getMessage()));
     }
 
-    // 502 not 500, the failure is in the downstream service
+    // 502 chứ không phải 500, vì lỗi nằm ở service phía sau
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ErrorResponse> handleAiFailure(RestClientException e) {
         log.error("Gọi ai-service thất bại", e);

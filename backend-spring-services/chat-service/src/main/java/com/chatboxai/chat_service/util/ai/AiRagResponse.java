@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import tools.jackson.databind.JsonNode;
 
-// citations and retrievedChunks stay as JsonNode, chat-service only forwards them
+// citations và retrievedChunks giữ nguyên kiểu JsonNode, chat-service chỉ chuyển tiếp chứ không đọc
 public record AiRagResponse(
         String answer,
         JsonNode citations,

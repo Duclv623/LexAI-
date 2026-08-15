@@ -12,6 +12,6 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
 
     Page<Conversation> findByUserId(String userId, Pageable pageable);
 
-    // userId in the WHERE clause, so no code path can forget the ownership check
+    // userId nằm trong mệnh đề WHERE, nên không nhánh mã nào có thể quên kiểm tra quyền sở hữu
     Optional<Conversation> findByIdAndUserId(Long id, String userId);
 }

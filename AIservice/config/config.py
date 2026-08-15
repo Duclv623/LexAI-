@@ -16,11 +16,11 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 DATA_TO_ADD_PATH = os.path.join(BASE_DIR, "data", "docx_input")
 DATA_FINAL_PATH = os.path.join(BASE_DIR, "data", "docx_processed")
 
-# ChromaDB
+# Kho vector ChromaDB
 CHROMA_PATH = os.path.join(BASE_DIR, "chroma_db")
 COLLECTION_NAME = "phapluat"
 
-# Embedding model
+# Mô hình sinh vector nhúng
 EMBEDDING_MODEL = "intfloat/multilingual-e5-large"
 
 # LLM — Gemini là mô hình duy nhất được dùng.

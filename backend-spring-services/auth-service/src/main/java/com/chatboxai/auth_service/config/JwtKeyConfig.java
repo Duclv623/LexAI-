@@ -56,7 +56,7 @@ public class JwtKeyConfig {
             log.info("Đã nạp khoá RSA cố định cho JWT (kid={})", key.getKeyID());
             return key;
         } catch (Exception e) {
-            // openssl emits pkcs#1 by default, PKCS8EncodedKeySpec only reads pkcs#8
+            // openssl mặc định xuất pkcs#1, trong khi PKCS8EncodedKeySpec chỉ đọc được pkcs#8
             throw new IllegalStateException(
                     "AUTH_JWT_PRIVATE_KEY không hợp lệ — cần base64 (một dòng) của private key RSA "
                             + "định dạng PKCS#8 DER, không phải PKCS#1. Cách tạo: xem .env.example", e);
@@ -78,7 +78,7 @@ public class JwtKeyConfig {
     }
 
     private RSAKey toRsaKey(RSAPublicKey publicKey, PrivateKey privateKey) throws Exception {
-        // kid from the key thumbprint, not a random uuid, so it survives a restart
+        // kid suy ra từ dấu vân tay khoá chứ không phải uuid ngẫu nhiên, nhờ vậy giữ nguyên sau khi restart
         return new RSAKey.Builder(publicKey)
                 .privateKey(privateKey)
                 .keyIDFromThumbprint()

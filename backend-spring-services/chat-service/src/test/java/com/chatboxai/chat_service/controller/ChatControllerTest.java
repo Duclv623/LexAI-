@@ -45,7 +45,7 @@ class ChatControllerTest {
     @MockitoBean
     private ChatTurnService chatTurnService;
 
-    // SecurityConfig enables oauth2ResourceServer, @WebMvcTest does not autoconfigure a decoder
+    // SecurityConfig có bật oauth2ResourceServer, mà @WebMvcTest lại không tự cấu hình decoder
     @MockitoBean
     private JwtDecoder jwtDecoder;
 

@@ -33,9 +33,11 @@ public class Account {
     @Column(name = "full_name", length = 120)
     private String fullName;
 
+    @SuppressWarnings("FieldMayBeFinal")
     @Column(nullable = false, length = 30)
     private String role = "USER";
 
+    @SuppressWarnings("FieldMayBeFinal")
     @Column(nullable = false, length = 30)
     private String status = "ACTIVE";
 
@@ -43,6 +45,7 @@ public class Account {
     private Instant createdAt;
 
     @PrePersist
+    @SuppressWarnings("unused")
     void prePersist() {
         if (createdAt == null) {
             createdAt = Instant.now();

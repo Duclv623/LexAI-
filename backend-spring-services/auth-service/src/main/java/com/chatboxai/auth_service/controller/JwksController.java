@@ -18,7 +18,7 @@ public class JwksController {
 
     @GetMapping("/.well-known/jwks.json")
     public Map<String, Object> jwks() {
-        // toPublicJWK strips the private key
+        // toPublicJWK cắt bỏ phần private key, chỉ còn lại khoá công khai
         return new JWKSet(rsaKey.toPublicJWK()).toJSONObject();
     }
 }

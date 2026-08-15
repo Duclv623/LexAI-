@@ -15,7 +15,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     long countByConversationId(Long conversationId);
 
-    // one grouped query for a whole page instead of one COUNT per conversation
+    // một truy vấn gộp cho cả trang thay vì một COUNT cho mỗi hội thoại
     @Query("""
             select m.conversationId as conversationId, count(m) as total
             from Message m

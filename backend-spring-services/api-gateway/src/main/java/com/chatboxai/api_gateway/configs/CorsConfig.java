@@ -30,7 +30,7 @@ public class CorsConfig {
 
         FilterRegistrationBean<CorsFilter> registration =
                 new FilterRegistrationBean<>(new CorsFilter(source));
-        // must run before rate limit (+10) and jwt (+20), preflight OPTIONS carries no token
+        // phải chạy trước rate limit (+10) và jwt (+20), request preflight OPTIONS không mang token
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return registration;
     }
