@@ -25,7 +25,7 @@ EMBEDDING_MODEL = "intfloat/multilingual-e5-large"
 
 # LLM — Gemini là mô hình duy nhất được dùng.
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gemini-2.5-flash")
+LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gemini-3.5-flash-lite")
 
 # JWT (zero-trust) — verify token bằng public key lấy từ JWKS của auth-service.
 # ai-service KHÔNG giữ secret nào, chỉ fetch public key.
