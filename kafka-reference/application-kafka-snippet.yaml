@@ -1,0 +1,25 @@
+# Đoạn cần thêm vào chat-service/src/main/resources/application.yaml.
+# KHÔNG thay thế cả file — chỉ chèn thêm các khối dưới đây vào đúng chỗ.
+
+spring:
+  kafka:
+    # Trong Docker dùng tên service + cổng nội bộ; chạy tay trên máy thì localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:chat-service}
+      auto-offset-reset: earliest
+      # Tắt tự động xác nhận vị trí đọc. Để bật, Kafka có thể coi như đã xử lý xong
+      # trước khi ta thực sự lưu được câu trả lời -> tiến trình chết là mất bản tin.
+      enable-auto-commit: false
+    listener:
+      ack-mode: manual_immediate
+
+app:
+  kafka:
+    topic:
+      questions: ${KAFKA_TOPIC_QUESTIONS:questions_topic}
+      answers: ${KAFKA_TOPIC_ANSWERS:answers_topic}
+
+# Bản gốc đặt tên thuộc tính là kafka.topic.answers_topic (ngoài khối app).
+# Đổi sang app.kafka.topic.* cho khớp quy ước đặt tên sẵn có của dự án này
+# (app.jwt.*, app.ai.*, app.cors.*, app.rate-limit.*).

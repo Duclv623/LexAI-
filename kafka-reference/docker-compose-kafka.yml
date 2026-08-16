@@ -1,0 +1,34 @@
+# File: docker-compose.yml (Chế độ KRaft - KHÔNG DÙNG ZOOKEEPER)
+version: '3.8'
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-kraft
+    ports:
+      - "9092:9092"
+    environment:
+      # --- Cấu hình KRaft ---
+      # 1. Vai trò của node này: vừa là broker (lưu trữ dữ liệu) vừa là controller (quản lý cụm)
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      # 2. ID duy nhất cho node này
+      KAFKA_NODE_ID: 1
+      # 3. Danh sách các controller (vì chúng ta chỉ có 1 node, nên nó tự bỏ phiếu cho chính nó)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      # 4. Bật chế độ KRaft (chế độ không Zookeeper)
+      KAFKA_METADATA_LOG_DIR: '/var/lib/kafka/metadata'
+      
+      # --- Cấu hình mạng ---
+      # 5. Các cổng mà Kafka sẽ lắng nghe
+      KAFKA_LISTENERS: 'PLAINTEXT://:29092,CONTROLLER://:29093,PLAINTEXT_HOST://:9092'
+      # 6. "Quảng cáo" địa chỉ mà client bên ngoài có thể kết nối đến
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      # 7. Ánh xạ các giao thức bảo mật
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      # 8. Tên của listener dành cho controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      
+      # --- Cấu hình khác ---
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Cần một ID cho cụm, có thể tạo ngẫu nhiên
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
