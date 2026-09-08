@@ -1,0 +1,22 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "chatbox_auth",
+      "Group": "ChatBox2AI",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "chatbox_auth",
+      "Username": "auth_service",
+      "SSLMode": "prefer"
+    },
+    "2": {
+      "Name": "chatbox_chat",
+      "Group": "ChatBox2AI",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "chatbox_chat",
+      "Username": "chat_service",
+      "SSLMode": "prefer"
+    }
+  }
+}
