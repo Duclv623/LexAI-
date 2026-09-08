@@ -54,3 +54,4 @@ AIservice/chroma_db/
 ~$*.docx
 
 *.docx
+DataChat/
