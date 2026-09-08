@@ -52,3 +52,5 @@ coverage/
 # ChromaDB runtime data
 AIservice/chroma_db/
 ~$*.docx
+
+.~$Hoach_Kafka_ChatBox2AI.docx
