@@ -53,4 +53,4 @@ coverage/
 AIservice/chroma_db/
 ~$*.docx
 
-.~$Hoach_Kafka_ChatBox2AI.docx
+*.docx
